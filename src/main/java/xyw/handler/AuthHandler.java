@@ -6,11 +6,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 
-import xyw.Handler;
 import xyw.Logger;
 import xyw.Request;
 import xyw.Response;
 import xyw.Response.ResponseCode;
+import static xyw.Constant.*;
 
 public class AuthHandler implements Handler {
 	private static final String AUTH_KEY = "Authorization";
@@ -18,6 +18,7 @@ public class AuthHandler implements Handler {
 	private final String AUTH;
 	private final List<Pattern> whiteList;
 	public AuthHandler(String name,String pwd,String ...whiteUrls){
+		Logger.info("init AuthHandler: {}:{}", name,pwd);
 		AUTH = name+":"+pwd;
 		whiteList = new ArrayList<Pattern>();
 		if(null!=whiteUrls&&whiteUrls.length>0){
@@ -30,6 +31,8 @@ public class AuthHandler implements Handler {
 	@Override
 	public boolean handler(Request req, Response res) {
 		String url = req.getPath();
+		String method = req.getMethod();
+		if(!METHOD_POST.equals(method))
 		for(Pattern p:whiteList){
 			if(p.matcher(url).find()){
 				Logger.debug("认证白名单地址:{}",url);

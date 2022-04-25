@@ -1,14 +1,16 @@
 package xyw;
 
+import java.io.BufferedOutputStream;
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -18,6 +20,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class Tool {
 	public static Integer BUFFER_SIZE = 1024;
@@ -78,6 +82,82 @@ public class Tool {
 			
 		}
 		return result.toArray(new byte[result.size()][]);
+	}
+	public static class ReadLineStrust{
+		ReadLineStrust(byte[] line,InputStream input){
+			this.line = line;
+			this.input = input;
+		}
+		public byte[] line;
+		public final InputStream input;
+	}
+	/**
+	 * 读取流 直到遇到\r\n \n\r \r \n 中一种
+	 * @param is
+	 * @param keep 
+	 * @return
+	 */
+	public static ReadLineStrust readLine(InputStream is,boolean keep){
+		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		try {
+			while(true){
+				int b = is.read();
+				if(-1==b){
+					break;
+				}
+				if('\r'==b||'\n'==b){
+					if(keep){baos.write(b);}
+					int _b = is.read();
+					if(('\r'==_b||'\n'==_b)&&_b!=b){
+						if(keep){baos.write(b);}
+						return new ReadLineStrust(baos.toByteArray(),is);
+					}else{
+						return new ReadLineStrust(baos.toByteArray(),append(true,new ByteArrayInputStream(new byte[]{(byte) _b}),is));
+					}
+				}
+				baos.write(b);
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return new ReadLineStrust(baos.toByteArray(),is);
+	}
+	/**
+	 * 将in写入out直到遇到 stopbytes 停止写入或者in没有next
+	 * @param is
+	 * @param out
+	 * @param stopbytes
+	 * @return
+	 */
+	public static InputStream writeUntil(InputStream is,OutputStream out,byte[] stopbytes){
+		byte[] buffer = new byte[stopbytes.length];
+		int index = 0;
+		try {
+			int readnum = is.read(buffer);
+			if(readnum < buffer.length){
+				out.write(buffer);
+				return new ByteArrayInputStream(new byte[0]);
+			}
+			while(true){
+				if(equals(stopbytes, buffer,index)){
+					return is;
+				}
+				int b = is.read();
+				if(b==-1){
+					out.write(buffer,index,buffer.length-index);
+					out.write(buffer,0,index);
+					return new ByteArrayInputStream(new byte[0]);
+				}else{
+					out.write(buffer[index]);
+					buffer[index] = (byte)b;
+					index++;
+					if(index>=buffer.length)index=0;
+				}
+			}
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		return null;
 	}
 	/**
 	 * 读取流
@@ -164,7 +244,7 @@ public class Tool {
 	 * @param iss
 	 * @return
 	 */
-	public static InputStream append(final InputStream...iss){
+	public static InputStream append(final boolean autoClose,final InputStream...iss){
 		return new InputStream(){
 			private final InputStream[] is = iss;
 			private int index = 0;
@@ -174,6 +254,7 @@ public class Tool {
 				try{
 					data = is[index].read();
 					if(data==-1){
+						if(autoClose)is[index].close();
 						index += 1;
 						if(index<is.length){return read();}
 					}
@@ -189,45 +270,179 @@ public class Tool {
 			}
 		};
 	}
+	@SuppressWarnings("unchecked")
+	public static boolean isEmpty(Object obj){
+		if(null==obj){return true;}
+        boolean checked = false;
+        if(obj instanceof Collection){
+            checked = true;
+            if(!isEmpty((Collection<Object>) obj))return false;
+        }
+        if(obj instanceof Map){
+            checked = true;
+            if(!isEmpty((Map<Object,Object>) obj))return false;
+        }
+        if(obj.getClass().isArray()){
+            checked = true;
+            if(!isEmpty((Object[]) obj))return false;
+        }
+        if(obj instanceof String){
+            checked = true;
+            if(!((String)obj).isEmpty())return false;
+        }
+        if(!checked){
+            throw new RuntimeException("UNSUPPORTE DATA TYPE,Collection/Map/Array or String");
+        }
+        return checked;
+	}
 	public static boolean isEmpty(Collection<?> list){
-		if(null==list||list.isEmpty()){
-			return true;
-		}
 		for(Object obj:list){
-			if(obj instanceof Map){
-				if(!isEmpty((Map<?,?>)obj))return false;
-			}else if(obj instanceof Collection){
-				if(!isEmpty((Collection<?>)obj))return false;
-			}else if(obj.getClass().isArray()){
-				if(isEmpty(Arrays.asList((Object[])obj)))return false;
-			}else if(null!=obj)return false;
-		}
-		return true;
+            if(!isEmpty(obj))return false;
+        }
+        return false;
 	}
 	public static boolean isEmpty(Map<?,?> map){
-		if(null==map||map.isEmpty()){
-			return true;
-		}
-		return isEmpty(map.values());
+		for(Object obj:map.values()){
+            if(!isEmpty(obj))return false;
+        }
+        return true;
 	}
+	private static boolean isEmpty(Object[] array){
+        for(Object obj:array){
+            if(!isEmpty(obj))return false;
+        }
+        return false;
+    }
 	@SuppressWarnings("resource")
-	public static InputStream getInputStream(String path){
-		InputStream is = null;
-		File file = new File(path);
-		if(file.isFile()){
-			try {
-				is = new FileInputStream(file);
-			} catch (FileNotFoundException e) {}
-		}
-		if(null==is){
-			is = Tool.class.getResourceAsStream(path);
-		}
+	public static InputStream getResourceAsStream(String resource) {
+        InputStream in = null;
+        File resourceFile = new File(System.getProperty("user.dir")+File.separator+resource);
+        if (resourceFile.exists())
+            try {
+                in = new FileInputStream(resourceFile);
+            } catch (FileNotFoundException fileNotFoundException) {}
+        if (in == null)
+            in = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource);
+        if (null == in)
+            in = Tool.class.getResourceAsStream(resource);
+        if (null == in)
+            in = Tool.class.getClassLoader().getResourceAsStream(resource);
+        return in;
+    }
+	public static InputStream getResource(String path){
+		InputStream is = Tool.class.getResourceAsStream(path);
 		if(null==is){
 			is = Tool.class.getClassLoader().getResourceAsStream(path);
 		}
-		if(null==is){
-			throw new RuntimeException("Not Found path:"+path);
-		}
 		return is;
+	}
+	public static String tempFile(String resource) {
+        try {
+            InputStream in = getResourceAsStream(resource);
+            final File dir = new File(System.getProperty("java.io.tmpdir"),"temp-"+System.currentTimeMillis());
+            if(dir.exists())dir.delete();
+            dir.mkdirs();
+            Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
+                @Override
+                public void run() {
+                    Logger.debug("delete temp dir ...");
+                    delete(dir);
+                }
+            }));
+            ZipInputStream zIn = new ZipInputStream(in);
+            ZipEntry entry;
+            while ((entry = zIn.getNextEntry()) != null) {
+                if (!entry.isDirectory()) {
+                    File file = new File(dir, entry.getName());
+                    if (!file.exists())
+                        (new File(file.getParent())).mkdirs();
+                    BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(file));
+                    byte[] buf = new byte[1024];
+                    int len;
+                    while ((len = zIn.read(buf)) != -1)
+                        bos.write(buf, 0, len);
+                    bos.close();
+                }
+            }
+            zIn.close();
+            Logger.info("path:{}",dir.getPath());
+            return dir.getPath();
+        } catch (IOException e) {
+        	Logger.warn("fail to read {}", resource);
+            e.printStackTrace();
+            return null;
+        }
+    }
+	static void delete(File file) {
+        if (file.isDirectory())
+            for (File subFile : file.listFiles())
+                delete(subFile);
+        if (file.exists())
+            file.delete();
+    }
+	public static boolean equals(byte[] bs1,byte[] bs2){
+		return equals(bs1,bs2,0);
+	}
+	public static boolean equals(byte[] bs1,byte[] bs2,int index){
+		if((null==bs1)^(null==bs2)){
+			return false;
+		}
+		if(bs1.length!=bs2.length){
+			return false;
+		}
+		if(index>bs1.length||index<bs1.length*-1){
+			throw new IndexOutOfBoundsException();
+		}
+		if(index < 0){
+			index += bs1.length;
+		}
+		for(int i=0;i<bs1.length;i++){
+			int _i = (i+index>=bs1.length)?(i+index-bs1.length):(i+index);
+			if(bs1[i]!=bs2[_i])return false;
+		}
+		return true;
+	}
+	public static String toJSON(Map<?, ?> map){
+		boolean first = true;
+		StringBuilder builder = new StringBuilder("{");
+		for(Map.Entry<?, ?> entry:map.entrySet()){
+			if(first){
+				first=false;
+			}else{
+				builder.append(",");
+			}
+			builder.append(safeJson(entry.getKey())).append(":").append(safeJson(entry.getValue()));
+		}
+		builder.append("}");
+		return builder.toString();
+	}
+	public static String toJSON(Collection<?> collection){
+		boolean first = true;
+		StringBuilder builder = new StringBuilder("[");
+		for(Object obj:collection){
+			if(first){
+				first=false;
+			}else{
+				builder.append(",");
+			}
+			builder.append(safeJson(obj));
+		}
+		builder.append("]");
+		return builder.toString();
+	}
+	private static String safeJson(Object obj){
+		if(null==obj){
+			return "null";
+		}
+		if(obj instanceof String){
+			return "\""+((String)obj).replaceAll("\\\\", "\\\\").replaceAll("\"", "\\\"")+"\"";
+		}
+		if(obj instanceof Map){
+			return toJSON((Map<?, ?>)obj);
+		}
+		if(obj instanceof Collection){
+			return toJSON((Collection<?>)obj);
+		}
+		return String.valueOf(obj);
 	}
 }
