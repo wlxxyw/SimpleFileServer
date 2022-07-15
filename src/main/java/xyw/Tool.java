@@ -1,32 +1,18 @@
 package xyw;
 
-import java.io.BufferedOutputStream;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class Tool {
 	public static Integer BUFFER_SIZE = 1024;
-	public static Integer TIME_OUT = 1000;
-	public static Integer POOL_SIZE = 64;
+	public static Integer TIME_OUT = 10000;
+	public static Integer POOL_SIZE = 32;
 	private static final ScheduledExecutorService pool = Executors.newScheduledThreadPool(POOL_SIZE);
 	
 	/**
@@ -47,7 +33,7 @@ public class Tool {
 	}
 	/**
 	 *  直到 \n 或者 \r 或者 \r\n 或者 \n\r
-	 * @param byte[] 
+	 * @param bs 数据
 	 * @param keep 是否保留换行符
 	 * @return 字节数组
 	 */
@@ -84,35 +70,51 @@ public class Tool {
 		return result.toArray(new byte[result.size()][]);
 	}
 	public static class ReadLineStrust{
-		ReadLineStrust(byte[] line,InputStream input){
+		ReadLineStrust(byte[] line,InputStream input,boolean endWithNewLine){
 			this.line = line;
 			this.input = input;
+			this.endWithNewLine = endWithNewLine;
 		}
 		public byte[] line;
 		public final InputStream input;
+		public boolean endWithNewLine;
+
+		public ReadLineStrust append(ReadLineStrust append){
+			byte[] bs = new byte[this.line.length+append.line.length];
+			System.arraycopy(this.line,0,bs,0,this.line.length);
+			System.arraycopy(append.line,0,bs,this.line.length,append.line.length);
+			return new ReadLineStrust(bs,append.input,append.endWithNewLine);
+		}
 	}
+
 	/**
 	 * 读取流 直到遇到\r\n \n\r \r \n 中一种
 	 * @param is
 	 * @param keep 
 	 * @return
 	 */
-	public static ReadLineStrust readLine(InputStream is,boolean keep){
+	public static ReadLineStrust readLine(InputStream is,int retryTimes,boolean keep){
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		int _retryTimes = 0;
 		try {
 			while(true){
 				int b = is.read();
 				if(-1==b){
-					break;
+					_retryTimes ++;
+					if(_retryTimes<retryTimes){
+						continue;
+					}else{
+						break;
+					}
 				}
 				if('\r'==b||'\n'==b){
 					if(keep){baos.write(b);}
 					int _b = is.read();
 					if(('\r'==_b||'\n'==_b)&&_b!=b){
 						if(keep){baos.write(b);}
-						return new ReadLineStrust(baos.toByteArray(),is);
+						return new ReadLineStrust(baos.toByteArray(),is,true);
 					}else{
-						return new ReadLineStrust(baos.toByteArray(),append(true,new ByteArrayInputStream(new byte[]{(byte) _b}),is));
+						return new ReadLineStrust(baos.toByteArray(),append(true,new ByteArrayInputStream(new byte[]{(byte) _b}),is),true);
 					}
 				}
 				baos.write(b);
@@ -120,7 +122,7 @@ public class Tool {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return new ReadLineStrust(baos.toByteArray(),is);
+		return new ReadLineStrust(baos.toByteArray(),is,false);
 	}
 	/**
 	 * 将in写入out直到遇到 stopbytes 停止写入或者in没有next
@@ -212,6 +214,15 @@ public class Tool {
 		if(closeOs)os.close();
 		return length;
 	}
+	public static <T> T waitAction(final Action<T> action,long timeout) throws ExecutionException, InterruptedException, TimeoutException {
+		Future<T> data = pool.submit(new Callable<T>() {
+			@Override
+			public T call() {
+				return action.action();
+			}
+		});
+		return data.get(timeout,TimeUnit.MILLISECONDS);
+	}
 	/**
 	 * 包装输入流,处理堵塞的输入流 使用默认超时时间
 	 * @param is
@@ -221,6 +232,7 @@ public class Tool {
 		return new InputStream(){
 			@Override
 			public int read() throws IOException {
+				long start = System.currentTimeMillis();
 				Future<Integer> data = pool.submit(new Callable<Integer>() {
 					@Override
 					public Integer call() throws Exception {
@@ -228,8 +240,9 @@ public class Tool {
 					}
 				});
 				try {
-					return data.get(TIME_OUT, TimeUnit.MICROSECONDS);
+					return data.get(TIME_OUT, TimeUnit.MILLISECONDS);
 				}catch (TimeoutException e){
+					Logger.warn("timeout:{}-{}",start,System.currentTimeMillis());
 					return -1;
 				} catch (Throwable e) {
 					e.printStackTrace();
@@ -444,5 +457,73 @@ public class Tool {
 			return toJSON((Collection<?>)obj);
 		}
 		return String.valueOf(obj);
+	}
+	public static void close(Closeable closeable){
+		try {
+			closeable.close();
+		} catch (IOException e) {
+			Logger.warn("close fail!",e);
+		}
+	}
+	
+	private static final byte[] BASE64 = new byte[64];
+	static{
+		for(int i = 0; i <= 61; ++i) {
+			if(i<=25){
+				BASE64[i] = (byte)(65 + i);
+			}else if(i <= 51){
+				BASE64[i] = (byte)(97 - 26 + i);
+			}else {
+				BASE64[i] = (byte)(48 - 52 + i);
+			}
+        }
+		BASE64[62] = 43;
+		BASE64[63] = 47;
+	}
+	
+	public static byte[] decode(byte[] base64Data) {
+        if (base64Data.length == 0) {
+            return new byte[0];
+        } else {
+            int numberQuadruple = base64Data.length / 4;
+            int encodedIndex = 0;
+            int i = base64Data.length;
+
+            while(base64Data[i - 1] == 61) {
+                --i;
+                if (i == 0) {
+                    return new byte[0];
+                }
+            }
+            byte[] decodedData = new byte[i - numberQuadruple];
+
+            for(i = 0; i < numberQuadruple; ++i) {
+                int dataIndex = i * 4;
+                byte marker0 = base64Data[dataIndex + 2];
+                byte marker1 = base64Data[dataIndex + 3];
+                byte b1 = BASE64[base64Data[dataIndex]];
+                byte b2 = BASE64[base64Data[dataIndex + 1]];
+                byte b3;
+                if (marker0 != 61 && marker1 != 61) {
+                    b3 = BASE64[marker0];
+                    byte b4 = BASE64[marker1];
+                    decodedData[encodedIndex] = (byte)(b1 << 2 | b2 >> 4);
+                    decodedData[encodedIndex + 1] = (byte)((b2 & 15) << 4 | b3 >> 2 & 15);
+                    decodedData[encodedIndex + 2] = (byte)(b3 << 6 | b4);
+                } else if (marker0 == 61) {
+                    decodedData[encodedIndex] = (byte)(b1 << 2 | b2 >> 4);
+                } else {
+                    b3 = BASE64[marker0];
+                    decodedData[encodedIndex] = (byte)(b1 << 2 | b2 >> 4);
+                    decodedData[encodedIndex + 1] = (byte)((b2 & 15) << 4 | b3 >> 2 & 15);
+                }
+
+                encodedIndex += 3;
+            }
+            return decodedData;
+        }
+	}
+	public interface Action<T>{
+		T action();
 	}
 }

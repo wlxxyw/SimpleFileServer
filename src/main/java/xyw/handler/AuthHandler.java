@@ -1,6 +1,5 @@
 package xyw.handler;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +9,7 @@ import xyw.Logger;
 import xyw.Request;
 import xyw.Response;
 import xyw.Response.ResponseCode;
+import xyw.Tool;
 import static xyw.Constant.*;
 
 public class AuthHandler implements Handler {
@@ -27,7 +27,6 @@ public class AuthHandler implements Handler {
 			}
 		}
 	}
-	@SuppressWarnings("restriction")
 	@Override
 	public boolean handler(Request req, Response res) {
 		String url = req.getPath();
@@ -43,12 +42,8 @@ public class AuthHandler implements Handler {
 		Map<String, String> header = req.getHeaders();
 		if(header.containsKey(AUTH_KEY)){
 			String authLine =  header.get(AUTH_KEY);
-			try {
-				authLine = new String(new sun.misc.BASE64Decoder().decodeBuffer(authLine.substring(AUTH_BASIC.length()).trim()));
-				pass = AUTH.equals(authLine.trim());
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			authLine = new String(Tool.decode(authLine.substring(AUTH_BASIC.length()).trim().getBytes()));
+			pass = AUTH.equals(authLine.trim());
 		}
 		if(pass){
 			Logger.debug("认证成功!");
