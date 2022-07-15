@@ -1,5 +1,8 @@
 package xyw;
 
+import lombok.Getter;
+import lombok.Setter;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -10,6 +13,7 @@ import java.util.Map;
 import static xyw.Tool.*;
 import static xyw.Constant.*;
 
+@Getter@Setter
 public class Response {
 	public Response(){
 		this.code = ResponseCode.NOT_FOUNT;
@@ -73,19 +77,6 @@ public class Response {
 		stringBuilder.append("\r\n");
 		os.write(stringBuilder.toString().getBytes(UTF8));
 		link(body, os, true, true);
-	}
-
-	public ResponseCode getCode() {
-		return code;
-	}
-	public void setCode(ResponseCode code) {
-		this.code = code;
-	}
-	public Map<String, String> getHeaders() {
-		return headers;
-	}
-	public void setHeaders(Map<String, String> headers) {
-		this.headers = headers;
 	}
 	public void joinBody(byte[] body) {
 		this.body = append(true, this.body,new ByteArrayInputStream(body));
