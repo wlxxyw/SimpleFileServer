@@ -1,10 +1,7 @@
 package xyw;
 
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -465,63 +462,59 @@ public class Tool {
 			Logger.warn("close fail!",e);
 		}
 	}
-	
-	private static final byte[] BASE64 = new byte[64];
-	static{
-		for(int i = 0; i <= 61; ++i) {
-			if(i<=25){
-				BASE64[i] = (byte)(65 + i);
-			}else if(i <= 51){
-				BASE64[i] = (byte)(97 - 26 + i);
-			}else {
-				BASE64[i] = (byte)(48 - 52 + i);
-			}
-        }
-		BASE64[62] = 43;
-		BASE64[63] = 47;
+
+	private static final char[] toBase64 = {
+			'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+			'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+			'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+			'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+			'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
+	};
+	private static final int[] fromBase64 = new int[256];
+	static {
+		Arrays.fill(fromBase64, -1);
+		for (int i = 0; i < toBase64.length; i++)
+			fromBase64[toBase64[i]] = i;
+		fromBase64['='] = -2;
 	}
-	
+	private static int outLength(byte[] src){
+		int paddings = 0;
+		int len = src.length;
+		if (len == 0)return 0;
+		if (src[len - 1] == '=') {
+			paddings++;
+			if (src[len - 2] == '=')
+				paddings++;
+		}
+		if (paddings == 0 && (len & 0x3) !=  0)
+			paddings = 4 - (len & 0x3);
+		return 3 * ((len + 3) / 4) - paddings;
+	}
 	public static byte[] decode(byte[] base64Data) {
-        if (base64Data.length == 0) {
-            return new byte[0];
-        } else {
-            int numberQuadruple = base64Data.length / 4;
-            int encodedIndex = 0;
-            int i = base64Data.length;
-
-            while(base64Data[i - 1] == 61) {
-                --i;
-                if (i == 0) {
-                    return new byte[0];
-                }
-            }
-            byte[] decodedData = new byte[i - numberQuadruple];
-
-            for(i = 0; i < numberQuadruple; ++i) {
-                int dataIndex = i * 4;
-                byte marker0 = base64Data[dataIndex + 2];
-                byte marker1 = base64Data[dataIndex + 3];
-                byte b1 = BASE64[base64Data[dataIndex]];
-                byte b2 = BASE64[base64Data[dataIndex + 1]];
-                byte b3;
-                if (marker0 != 61 && marker1 != 61) {
-                    b3 = BASE64[marker0];
-                    byte b4 = BASE64[marker1];
-                    decodedData[encodedIndex] = (byte)(b1 << 2 | b2 >> 4);
-                    decodedData[encodedIndex + 1] = (byte)((b2 & 15) << 4 | b3 >> 2 & 15);
-                    decodedData[encodedIndex + 2] = (byte)(b3 << 6 | b4);
-                } else if (marker0 == 61) {
-                    decodedData[encodedIndex] = (byte)(b1 << 2 | b2 >> 4);
-                } else {
-                    b3 = BASE64[marker0];
-                    decodedData[encodedIndex] = (byte)(b1 << 2 | b2 >> 4);
-                    decodedData[encodedIndex + 1] = (byte)((b2 & 15) << 4 | b3 >> 2 & 15);
-                }
-
-                encodedIndex += 3;
-            }
-            return decodedData;
-        }
+		byte[] dst = new byte[outLength(base64Data)];
+		int dp = 0;
+		int bits = 0;
+		int shiftto = 18;
+		int index =0;
+		while(index<base64Data.length){
+			int b = fromBase64[base64Data[index++] & 0xff];
+			bits |= (b << shiftto);
+			shiftto -= 6;
+			if (shiftto < 0) {
+				dst[dp++] = (byte)(bits >> 16);
+				dst[dp++] = (byte)(bits >>  8);
+				dst[dp++] = (byte)(bits);
+				shiftto = 18;
+				bits = 0;
+			}
+		}
+		if (shiftto == 6) {
+			dst[dp++] = (byte)(bits >> 16);
+		} else if (shiftto == 0) {
+			dst[dp++] = (byte)(bits >> 16);
+			dst[dp++] = (byte)(bits >>  8);
+		}
+		return dst;
 	}
 	public interface Action<T>{
 		T action();
