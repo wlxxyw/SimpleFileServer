@@ -29,7 +29,7 @@ public class DoDeleteServlet extends Servlet{
 				e.printStackTrace();
 				return true;
 			}
-			Logger.debug("新建文件夹请求:{}", dir);
+			Logger.debug("删除文件请求:{}", dir);
 			File f = new File(workPath + path.substring(context.length()),dir);
 			if(!f.exists()){
 				quickFinish(res, ResponseCode.ERROR,"文件路径不存在!");
