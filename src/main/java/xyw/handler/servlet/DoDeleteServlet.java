@@ -18,6 +18,7 @@ public class DoDeleteServlet extends Servlet{
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
+		if(matchContext(req))
 		if(METHOD_DELETE.equals(req.getMethod())){
 			String path = req.getPath();
 			String dir = "";

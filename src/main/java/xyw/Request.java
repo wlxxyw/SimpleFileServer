@@ -23,11 +23,11 @@ public class Request {
 		is = waitTimeout(is);
 		ReadLineStrust readLineStrust = readLine(is,5,false);
 		String line = new String(readLineStrust.line,UTF8);
-		Logger.info("接收到请求>{}",line);
+		Logger.debug("接收到请求>{}",line);
 		if(isEmpty(line)){this.skip = true;return;}
 		String[] strs = line.split("\\s{1,}");
 		if(strs.length!=3){
-			Logger.warn("无法分析的请求: {}", line);
+			Logger.info("无法分析的请求: {}", line);
 			this.skip = true;
 			return;
 		}
@@ -41,9 +41,9 @@ public class Request {
 			}
 			String[] paths = path.split("\\?",2);
 			this.path = paths[0];
-			Logger.info("解析请求>{} --> {}",line,this.path);
+			Logger.debug("解析请求>{} --> {}",line,this.path);
 			if(paths.length==2){
-				Logger.info("解析请求url参数>{}",paths[1]);
+				Logger.debug("解析请求url参数>{}",paths[1]);
 				for(String paramStr:paths[1].split("&")){
 					if(!isEmpty(paramStr)&&paramStr.contains("=")){
 						String[] paramStrs = paramStr.split("=",2);
@@ -68,6 +68,7 @@ public class Request {
 			this.headers.put(strs[0], strs[1].trim());
 		}else{
 			Logger.warn("无法分析的请求头:{}", headerStr);
+			throw new RuntimeException("无法分析的请求头:"+headerStr);
 		}
 		return initHeader(header.input);
 	}

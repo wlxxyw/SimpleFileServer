@@ -20,13 +20,14 @@ import xyw.handler.servlet.DoPutServlet;
 import xyw.handler.servlet.ResourceServlet;
 
 public class SimpleDynamicWebServer {
+    private static final String WORK_THREAD_NAME = "slave";
 	private static final Integer DEFAULT_PORT = 8088;
-	private static final ThreadGroup WORK_GROUP = new ThreadGroup("slave");
-	private static final ExecutorService WORK_POOL = Executors.newFixedThreadPool(4,new ThreadFactory() {
+	private static final ThreadGroup WORK_GROUP = new ThreadGroup(WORK_THREAD_NAME);
+	private static final ExecutorService WORK_POOL = Executors.newFixedThreadPool(8,new ThreadFactory() {
 		int i = 0;
 		@Override
 		public Thread newThread(Runnable r) {
-			return new Thread(WORK_GROUP, r,"slave-"+i++);
+			return new Thread(WORK_GROUP, r,WORK_THREAD_NAME+(i++));
 		}
 	});
     static ServerSocket server;
@@ -51,17 +52,6 @@ public class SimpleDynamicWebServer {
     	this.handlers.addAll(handlers);
         init();
     }
-    public SimpleDynamicWebServer(int port, Handler...handlers){
-    	if(null!=handlers&&0!=handlers.length){
-    		for(Handler handler:handlers){
-    			if(!this.handlers.contains(handler)){
-    				this.handlers.add(handler);
-    			}
-    		}
-    	}
-        init();
-    }
-
     public void start() {
         if (null == server) {
             return;
@@ -78,7 +68,10 @@ public class SimpleDynamicWebServer {
                         try {
                         	InputStream is = socket.getInputStream();
                         	Request request = new Request(is);
-                        	if(request.skip()){socket.close();return;}
+                        	if(request.skip()){
+                                Logger.info("skip request:{} {}",request.method,request.path);
+                                socket.close();return;
+                            }
                         	Response response = new Response();
                         	response.getHeaders().put("Connection", "close");//不支持长连接
                         	for(Handler handler:handlers){
@@ -92,6 +85,11 @@ public class SimpleDynamicWebServer {
                             socket.close();
                         } catch (IOException e) {
                             e.printStackTrace();
+                            try {
+                                socket.close();
+                            } catch (IOException ex) {
+                                ex.printStackTrace();
+                            }
                         }
                     }
                 });
@@ -101,7 +99,7 @@ public class SimpleDynamicWebServer {
         }
     }
         
-    public static void main(String[] args) throws IOException {
+    public static void main(String[] args) {
     	System.out.println("java -jar this.jar [port [workpath [context [username password]]]] \ndefault port: 8080\ndefault workpath: ./\ndefault context: /\ndefault no username&password");
     	List<Handler> handlers = new ArrayList<Handler>();
         int port = DEFAULT_PORT;

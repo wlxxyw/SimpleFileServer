@@ -18,12 +18,12 @@ public class ResourceServlet extends DoGetServlet{
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
-		String path = req.getPath();
-		if(null==path||0==path.length()||!path.startsWith(context)){return false;}
+		if(matchContext(req))
 		if(METHOD_GET.equals(req.getMethod())){
+			String path = req.getPath();
 			File f = new File(workPath + path.substring(context.length()));
 			if(f.isFile()){
-				Logger.info("{} --> {}", path,f.getAbsolutePath());
+				Logger.debug("{} --> {}", path,f.getAbsolutePath());
 				String lastModified = String.valueOf(f.lastModified());
 				String ifLastModified = req.getHeader("If-Modified-Since");
 				if(!lastModified.equals(ifLastModified)){
@@ -39,7 +39,7 @@ public class ResourceServlet extends DoGetServlet{
 						quickFinish(res, ResponseCode.ERROR,e.getLocalizedMessage());
 					}
 				}else{
-					Logger.info("{} user cache!", path);
+					Logger.debug("{} user cache!", path);
 					res.setCode(ResponseCode.NOT_MODIFIED);
 				}
 				return true;

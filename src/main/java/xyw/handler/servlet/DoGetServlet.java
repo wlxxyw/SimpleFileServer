@@ -25,9 +25,9 @@ public class DoGetServlet extends Servlet{
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
-		String path = req.getPath();
-		if(null==path||0==path.length()||!path.startsWith(context)){return false;}
+		if(matchContext(req))
 		if(METHOD_GET.equals(req.getMethod())){
+			String path = req.getPath();
 			String action = req.getParam("action");
 			File f = new File(workPath + path.substring(context.length()));
 			if(!f.exists()){
@@ -35,7 +35,7 @@ public class DoGetServlet extends Servlet{
 				return false;
 			}
 			if(f.isFile()){
-				Logger.info("{} --> {}", path,f.getAbsolutePath());
+				Logger.debug("{} --> {}", path,f.getAbsolutePath());
 				String lastModified = String.valueOf(f.lastModified());
 				String ifLastModified = req.getHeader("If-Modified-Since");
 				if(!lastModified.equals(ifLastModified)){
@@ -50,7 +50,7 @@ public class DoGetServlet extends Servlet{
 						quickFinish(res, ResponseCode.ERROR,e.getLocalizedMessage());
 					}
 				}else{
-					Logger.info("{} user cache!", path);
+					Logger.debug("{} user cache!", path);
 					res.setCode(ResponseCode.NOT_MODIFIED);
 				}
 			}else{
@@ -60,6 +60,7 @@ public class DoGetServlet extends Servlet{
 					res.setBody(HTML_TEMPLATE);
 				}else{
 					if(f.isDirectory()){
+						Logger.debug("获取文件列表:{}",f.getAbsolutePath());
 						res.setCode(ResponseCode.OK);
 						res.getHeaders().put("Content-Type", DEFAULT_JSON);
 						res.setBody(toJSON(fileList(f.listFiles())).getBytes(UTF8));

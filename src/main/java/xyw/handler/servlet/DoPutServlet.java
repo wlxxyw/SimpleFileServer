@@ -18,6 +18,7 @@ public class DoPutServlet extends Servlet{
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
+		if(matchContext(req))
 		if(METHOD_PUT.equals(req.getMethod())){
 			String path = req.getPath();
 			String dir = "";

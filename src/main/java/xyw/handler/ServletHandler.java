@@ -16,8 +16,12 @@ public class ServletHandler implements Handler {
 	}
 	@Override
 	public boolean handler(Request req, Response res) {
+		Logger.debug("ServletHandler 处理请求:{} {}",req.getMethod(),req.getPath());
 		for(Servlet servlet:servlets){
-			if(servlet.doServlet(req, res))return true;
+			if(servlet.doServlet(req, res)){
+				Logger.debug("Servlet{} 处理了请求:{} {}",servlet.getClass().getName(),req.getMethod(),req.getPath());
+				return true;
+			};
 		}
 		return false;
 	}

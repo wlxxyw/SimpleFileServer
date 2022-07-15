@@ -33,6 +33,7 @@ public class DoPostServlet extends Servlet{
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
+		if(matchContext(req))
 		if(METHOD_POST.equals(req.getMethod())){
 			String path = req.getPath();
 			Logger.debug("文件上传请求:{}", path);
@@ -103,7 +104,7 @@ public class DoPostServlet extends Servlet{
 		public FormData(File dir,InputStream is, byte[] boundary){
 			ReadLineStrust lineStrust;
 			do{
-				lineStrust = readLine(is, false);
+				lineStrust = readLine(is, 5,false);
 				String line = new String(lineStrust.line,UTF8);
 				if(line.contains(":")){
 					this.put(line.split(":")[0], line.split(":")[1].trim());
@@ -150,7 +151,7 @@ public class DoPostServlet extends Servlet{
 				is = writeUntil(is, baos, boundary);
 				String value = new String(baos.toByteArray(),UTF8);
 				put(name, value);
-				Logger.info("成功获取到参数!{}:{}", name,value);
+				Logger.debug("成功获取到参数!{}:{}", name,value);
 			}
 			this.input = is;
 		}
