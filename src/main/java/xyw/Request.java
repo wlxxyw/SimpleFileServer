@@ -20,16 +20,21 @@ public class Request {
 	InputStream body;
 	boolean skip = false;
 	public Request(InputStream is){
-		is = waitTimeout(is);
-		ReadLineStrust readLineStrust = readLine(is,5,false);
+		init(is);
+		initHeader(is);
+		this.body = is;
+	}
+	private InputStream init(InputStream is){
+		InputStream waitIs = waitTimeout(is);
+		ReadLineStrust readLineStrust = readLine(waitIs,5,false);
 		String line = new String(readLineStrust.line,UTF8);
 		Logger.debug("接收到请求>{}",line);
-		if(isEmpty(line)){this.skip = true;return;}
+		if(isEmpty(line)){this.skip = true;return waitIs;}
 		String[] strs = line.split("\\s{1,}");
 		if(strs.length!=3){
 			Logger.info("无法分析的请求: {}", line);
 			this.skip = true;
-			return;
+			return waitIs;
 		}
 		this.method = strs[0];
 		String path = strs[1];
@@ -54,23 +59,26 @@ public class Request {
 				}
 			}
 		}
-		this.body = initHeader(readLineStrust.input);
+		return waitIs;
 	}
 	private InputStream initHeader(InputStream is){
-		ReadLineStrust header = readLine(is,5,false);
-		String headerStr = new String(header.line,UTF8);
-		Logger.debug(">{}",headerStr);
-		if(isEmpty(headerStr)){
-			return header.input;
+		InputStream waitIs = waitTimeout(is);
+		while(true){
+			ReadLineStrust header = readLine(is,5,false);
+			String headerStr = new String(header.line,UTF8);
+			Logger.debug(">{}",headerStr);
+			if(isEmpty(headerStr)){
+				break;
+			}
+			String[] strs = headerStr.split(":\\s",2);
+			if(2==strs.length){
+				this.headers.put(strs[0], strs[1].trim());
+			}else{
+				Logger.warn("无法分析的请求头:{}", headerStr);
+				throw new RuntimeException("无法分析的请求头:"+headerStr);
+			}
 		}
-		String[] strs = headerStr.split(":\\s",2);
-		if(2==strs.length){
-			this.headers.put(strs[0], strs[1].trim());
-		}else{
-			Logger.warn("无法分析的请求头:{}", headerStr);
-			throw new RuntimeException("无法分析的请求头:"+headerStr);
-		}
-		return initHeader(header.input);
+		return waitIs;
 	}
 	public boolean skip(){return skip;}
 	public String getParam(String key){
