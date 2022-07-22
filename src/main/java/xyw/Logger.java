@@ -19,7 +19,7 @@ public class Logger {
 			return new Thread(r,"log");
 		}
 	});
-	private static boolean debugable = false;
+	public static final boolean debugable;
 	private static final boolean _default;
 	private static final PrintStream print;
 	static {
@@ -28,9 +28,7 @@ public class Logger {
 			debugable = true;
 		}else{
 			debug = System.getProperty("debug");
-			if (null != debug && 0 != debug.length() && !"0".equals(debug)) {
-				debugable = true;
-			}
+			debugable = null != debug && 0 != debug.length() && !"0".equals(debug);
 		}
 		String logFilePath = System.getenv("logfile");
 		if(null==logFilePath)logFilePath=System.getProperty("logfile");

@@ -1,5 +1,10 @@
 package xyw;
 
+import xyw.handler.AuthHandler;
+import xyw.handler.Handler;
+import xyw.handler.ServletHandler;
+import xyw.handler.servlet.*;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -10,14 +15,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
-import xyw.handler.AuthHandler;
-import xyw.handler.Handler;
-import xyw.handler.ServletHandler;
-import xyw.handler.servlet.DoDeleteServlet;
-import xyw.handler.servlet.DoGetServlet;
-import xyw.handler.servlet.DoPostServlet;
-import xyw.handler.servlet.DoPutServlet;
-import xyw.handler.servlet.ResourceServlet;
+import static xyw.Tool.*;
 
 public class SimpleDynamicWebServer {
     private static final String WORK_THREAD_NAME = "slave";
@@ -66,7 +64,10 @@ public class SimpleDynamicWebServer {
                 WORK_POOL.execute(new Runnable() {
                     public void run() {
                         try {
-                        	InputStream is = socket.getInputStream();
+                            InputStream is = waitTimeout(socket.getInputStream());
+                            if(Logger.debugable){
+                                is = logInputStream(is,16*1024);
+                            }
                         	Request request = new Request(is);
                         	if(request.skip()){
                                 Logger.info("skip request:{} {}",request.method,request.path);
@@ -82,6 +83,7 @@ public class SimpleDynamicWebServer {
                         		}
                         	}
                             response.write(socket.getOutputStream());
+                            is.close();
                             socket.close();
                         } catch (IOException e) {
                             e.printStackTrace();
@@ -120,7 +122,7 @@ public class SimpleDynamicWebServer {
         if(args.length > 4){
         	handlers.add(new AuthHandler(args[3], args[4],"[/]{0,1}favicon\\.ico"));
         }
-        handlers.add(new ServletHandler(new ResourceServlet(Tool.tempFile("static.zip"), "/"),new DoGetServlet(workPath, context),new DoPostServlet(workPath, context),new DoPutServlet(workPath, context),new DoDeleteServlet(workPath, context)));
+        handlers.add(new ServletHandler(new ResourceServlet(tempFile("static.zip"), "/"),new DoGetServlet(workPath, context),new DoPostServlet(workPath, context),new DoPutServlet(workPath, context),new DoDeleteServlet(workPath, context)));
         new SimpleDynamicWebServer(port,handlers).start();
     }
 }

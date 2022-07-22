@@ -8,14 +8,14 @@ import java.util.zip.ZipInputStream;
 
 public class Tool {
 	public static Integer BUFFER_SIZE = 1024;
-	public static Integer TIME_OUT = 10000;
+	public static Integer TIME_OUT = 1000;
 	public static Integer POOL_SIZE = 32;
 	private static final ScheduledExecutorService pool = Executors.newScheduledThreadPool(POOL_SIZE);
 	
 	/**
 	 * byte数组拼接
-	 * @param bss
-	 * @return
+	 * @param bss 多个byte数组
+	 * @return 合并后的数组
 	 */
 	public static byte[] join(byte[]...bss){
 		byte[] bs = new byte[0];
@@ -29,6 +29,7 @@ public class Tool {
 		return bs;
 	}
 	/**
+	 *  将 byte[] 数组按换行分割
 	 *  直到 \n 或者 \r 或者 \r\n 或者 \n\r
 	 * @param bs 数据
 	 * @param keep 是否保留换行符
@@ -75,20 +76,13 @@ public class Tool {
 		public byte[] line;
 		public final InputStream input;
 		public boolean endWithNewLine;
-
-		public ReadLineStrust append(ReadLineStrust append){
-			byte[] bs = new byte[this.line.length+append.line.length];
-			System.arraycopy(this.line,0,bs,0,this.line.length);
-			System.arraycopy(append.line,0,bs,this.line.length,append.line.length);
-			return new ReadLineStrust(bs,append.input,append.endWithNewLine);
-		}
 	}
 
 	/**
 	 * 读取流 直到遇到\r\n \n\r \r \n 中一种
-	 * @param is
-	 * @param keep 
-	 * @return
+	 * @param is 输入流
+	 * @param keep 保留换行子节
+	 * @return ReadLineStrust 结构体
 	 */
 	public static ReadLineStrust readLine(InputStream is,int retryTimes,boolean keep){
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -103,6 +97,8 @@ public class Tool {
 					}else{
 						break;
 					}
+				}else{
+					_retryTimes = 0;
 				}
 				if('\r'==b||'\n'==b){
 					if(keep){baos.write(b);}
@@ -123,29 +119,29 @@ public class Tool {
 	}
 	/**
 	 * 将in写入out直到遇到 stopbytes 停止写入或者in没有next
-	 * @param is
-	 * @param out
-	 * @param stopbytes
-	 * @return
+	 * @param is 输入流
+	 * @param out 写入流
+	 * @param stopbytes 终止字节数组
+	 * @return 匹配(true) 或者 输入流终止(false)
 	 */
-	public static InputStream writeUntil(InputStream is,OutputStream out,byte[] stopbytes){
+	public static boolean writeUntil(InputStream is,OutputStream out,byte[] stopbytes){
 		byte[] buffer = new byte[stopbytes.length];
 		int index = 0;
 		try {
 			int readnum = is.read(buffer);
 			if(readnum < buffer.length){
-				out.write(buffer);
-				return new ByteArrayInputStream(new byte[0]);
+				if(readnum>0)out.write(buffer,0,readnum);
+				return false;
 			}
 			while(true){
 				if(equals(stopbytes, buffer,index)){
-					return is;
+					return true;
 				}
 				int b = is.read();
 				if(b==-1){
 					out.write(buffer,index,buffer.length-index);
 					out.write(buffer,0,index);
-					return new ByteArrayInputStream(new byte[0]);
+					return false;
 				}else{
 					out.write(buffer[index]);
 					buffer[index] = (byte)b;
@@ -155,8 +151,8 @@ public class Tool {
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+			return false;
 		}
-		return null;
 	}
 	/**
 	 * 读取流
@@ -169,7 +165,7 @@ public class Tool {
 		int length = 0;
 		try {
 			length = is.available();
-		} catch (IOException e) {
+		} catch (IOException ignored) {
 		}
 		if(0==length){
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -211,13 +207,8 @@ public class Tool {
 		if(closeOs)os.close();
 		return length;
 	}
-	public static <T> T waitAction(final Action<T> action,long timeout) throws ExecutionException, InterruptedException, TimeoutException {
-		Future<T> data = pool.submit(new Callable<T>() {
-			@Override
-			public T call() {
-				return action.action();
-			}
-		});
+	public static <T> T waitAction(final Callable<T> action,long timeout) throws ExecutionException, InterruptedException, TimeoutException {
+		Future<T> data = pool.submit(action);
 		return data.get(timeout,TimeUnit.MILLISECONDS);
 	}
 	/**
@@ -226,6 +217,9 @@ public class Tool {
 	 * @return
 	 */
 	public static InputStream waitTimeout(final InputStream is){
+		return waitTimeout(is,TIME_OUT);
+	}
+	public static InputStream waitTimeout(final InputStream is, final long timeout){
 		return new InputStream(){
 			@Override
 			public int read() throws IOException {
@@ -237,7 +231,7 @@ public class Tool {
 					}
 				});
 				try {
-					return data.get(TIME_OUT, TimeUnit.MILLISECONDS);
+					return data.get(timeout, TimeUnit.MILLISECONDS);
 				}catch (TimeoutException e){
 					Logger.warn("timeout:{}-{}",start,System.currentTimeMillis());
 					return -1;
@@ -246,13 +240,36 @@ public class Tool {
 					return -1;
 				}
 			}
-			
+
+		};
+	}
+	public static InputStream logInputStream(final InputStream is,final long bufferSize){
+		return new InputStream(){
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			@Override
+			public int read() throws IOException {
+				int data = is.read();
+				if(-1!=data){
+					if(buffer.size()>=bufferSize){
+						Logger.debug("logInputStream >> \n{}", buffer.toString());
+						buffer.reset();
+					}
+					buffer.write(data);
+				}
+				return data;
+			}
+			@Override
+			public void close() throws IOException {
+				super.close();
+				Logger.debug("logInputStream >> \n{}", buffer.toString());
+			}
+
 		};
 	}
 	/**
 	 * 连接输入流,当一个输入流结束后再读取下一个输入流
-	 * @param iss
-	 * @return
+	 * @param iss 将输入流串起来, 读完一个接着读另一个
+	 * @return 包装输入流
 	 */
 	public static InputStream append(final boolean autoClose,final InputStream...iss){
 		return new InputStream(){
@@ -294,7 +311,7 @@ public class Tool {
         }
         if(obj.getClass().isArray()){
             checked = true;
-            if(!isEmpty((Object[]) obj))return false;
+			if(!isEmpty((Object[]) obj))return false;
         }
         if(obj instanceof String){
             checked = true;
@@ -330,7 +347,7 @@ public class Tool {
         if (resourceFile.exists())
             try {
                 in = new FileInputStream(resourceFile);
-            } catch (FileNotFoundException fileNotFoundException) {}
+            } catch (FileNotFoundException ignored) {}
         if (in == null)
             in = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource);
         if (null == in)
@@ -339,13 +356,6 @@ public class Tool {
             in = Tool.class.getClassLoader().getResourceAsStream(resource);
         return in;
     }
-	public static InputStream getResource(String path){
-		InputStream is = Tool.class.getResourceAsStream(path);
-		if(null==is){
-			is = Tool.class.getClassLoader().getResourceAsStream(path);
-		}
-		return is;
-	}
 	public static String tempFile(String resource) {
         try {
             InputStream in = getResourceAsStream(resource);
@@ -355,7 +365,7 @@ public class Tool {
             Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    Logger.debug("delete temp dir ...");
+                    Logger.debug("delete temp dir({})...",dir.getAbsolutePath());
                     delete(dir);
                 }
             }));
@@ -390,9 +400,14 @@ public class Tool {
         if (file.exists())
             file.delete();
     }
-	public static boolean equals(byte[] bs1,byte[] bs2){
-		return equals(bs1,bs2,0);
-	}
+
+	/**
+	 * 数组错位比较 eg: [1,2,3,4] [4,1,2,3] 错位 1 相等
+	 * @param bs1 数组1
+	 * @param bs2 数组2
+	 * @param index 错位
+	 * @return 是否相等
+	 */
 	public static boolean equals(byte[] bs1,byte[] bs2,int index){
 		if((null==bs1)^(null==bs2)){
 			return false;
@@ -455,13 +470,6 @@ public class Tool {
 		}
 		return String.valueOf(obj);
 	}
-	public static void close(Closeable closeable){
-		try {
-			closeable.close();
-		} catch (IOException e) {
-			Logger.warn("close fail!",e);
-		}
-	}
 
 	private static final char[] toBase64 = {
 			'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
@@ -515,8 +523,5 @@ public class Tool {
 			dst[dp++] = (byte)(bits >>  8);
 		}
 		return dst;
-	}
-	public interface Action<T>{
-		T action();
 	}
 }

@@ -8,8 +8,8 @@ import java.net.URLDecoder;
 import java.util.HashMap;
 import java.util.Map;
 
+import static xyw.Constant.UTF8;
 import static xyw.Tool.*;
-import static xyw.Constant.*;
 
 @Getter
 public class Request {
@@ -25,16 +25,15 @@ public class Request {
 		this.body = is;
 	}
 	private InputStream init(InputStream is){
-		InputStream waitIs = waitTimeout(is);
-		ReadLineStrust readLineStrust = readLine(waitIs,5,false);
+		ReadLineStrust readLineStrust = readLine(is,5,false);
 		String line = new String(readLineStrust.line,UTF8);
-		Logger.debug("接收到请求>{}",line);
-		if(isEmpty(line)){this.skip = true;return waitIs;}
+		Logger.debug("接收到请求 >> {}",line);
+		if(isEmpty(line)){this.skip = true;return is;}
 		String[] strs = line.split("\\s{1,}");
 		if(strs.length!=3){
 			Logger.info("无法分析的请求: {}", line);
 			this.skip = true;
-			return waitIs;
+			return is;
 		}
 		this.method = strs[0];
 		String path = strs[1];
@@ -46,9 +45,9 @@ public class Request {
 			}
 			String[] paths = path.split("\\?",2);
 			this.path = paths[0];
-			Logger.debug("解析请求>{} --> {}",line,this.path);
+			Logger.debug("解析请求 >> {} --> {}",line,this.path);
 			if(paths.length==2){
-				Logger.debug("解析请求url参数>{}",paths[1]);
+				Logger.debug("解析请求url参数 >> {}",paths[1]);
 				for(String paramStr:paths[1].split("&")){
 					if(!isEmpty(paramStr)&&paramStr.contains("=")){
 						String[] paramStrs = paramStr.split("=",2);
@@ -59,14 +58,13 @@ public class Request {
 				}
 			}
 		}
-		return waitIs;
+		return is;
 	}
 	private InputStream initHeader(InputStream is){
-		InputStream waitIs = waitTimeout(is);
 		while(true){
 			ReadLineStrust header = readLine(is,5,false);
 			String headerStr = new String(header.line,UTF8);
-			Logger.debug(">{}",headerStr);
+			Logger.debug("请求头 >> {}",headerStr);
 			if(isEmpty(headerStr)){
 				break;
 			}
@@ -78,7 +76,7 @@ public class Request {
 				throw new RuntimeException("无法分析的请求头:"+headerStr);
 			}
 		}
-		return waitIs;
+		return is;
 	}
 	public boolean skip(){return skip;}
 	public String getParam(String key){

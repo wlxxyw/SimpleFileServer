@@ -41,8 +41,8 @@ public class AuthHandler implements Handler {
 		boolean pass = false;
 		Map<String, String> header = req.getHeaders();
 		if(header.containsKey(AUTH_KEY)){
-			String authLine =  header.get(AUTH_KEY);
-			authLine = new String(Tool.decode(authLine.substring(AUTH_BASIC.length()).trim().getBytes()));
+			String authLine =  header.get(AUTH_KEY).substring(AUTH_BASIC.length()).trim();
+			authLine = new String(Tool.decode(authLine.getBytes()));
 			pass = AUTH.equals(authLine.trim());
 		}
 		if(pass){
