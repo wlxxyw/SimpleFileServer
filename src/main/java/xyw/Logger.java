@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -23,6 +24,12 @@ public class Logger {
 	public static final boolean debug;
 	private static final boolean _default;
 	private static final PrintStream print;
+	private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd hh:mm:ss.SSS", Locale.CHINA);
+	private static final Pattern m = Pattern.compile("\\{(\\d*)}");
+	private static final int ERROR = 0;
+	private static final int WRAN = 10;
+	private static final int INFO = 20;
+	private static final int DEBUG = 30;
 	static {
 		debug = Boolean.parseBoolean(System.getenv("debug"))||Boolean.getBoolean("debug");
 		String logFilePath = System.getenv("logfile");
@@ -41,14 +48,8 @@ public class Logger {
 		_default = null == logOutputStream;
 		print = logOutputStream != null ? new PrintStream(logOutputStream)
 				: System.out;
+		sdf.setTimeZone(TimeZone.getTimeZone("GMT+08:00"));
 	}
-	private static final SimpleDateFormat sdf = new SimpleDateFormat(
-			"yyyy/MM/dd hh:mm:ss.SSS", Locale.CHINA);
-	private static final Pattern m = Pattern.compile("\\{(\\d*)}");
-	private static final int ERROR = 0;
-	private static final int WRAN = 10;
-	private static final int INFO = 20;
-	private static final int DEBUG = 30;
 
 	public static void debug(final String regex, Object... args) {
 		if (debug) {
@@ -111,7 +112,9 @@ public class Logger {
 				cache.append(" ");
 				cache.append(t.getName());
 				cache.append(" ");
-				cache.append(sdf.format(new Date(time)));
+				synchronized (sdf){
+					cache.append(sdf.format(new Date(time)));
+				}
 				cache.append(" ");
 				StringBuffer sub = new StringBuffer();
 				Throwable t = formatter(sub,msg,args);
