@@ -65,7 +65,7 @@ public class SimpleDynamicWebServer {
                     public void run() {
                         try {
                             InputStream is = waitTimeout(socket.getInputStream());
-                            if(Logger.debuggable){
+                            if(Logger.debug){
                                 is = logInputStream(is,16*1024);
                             }
                         	Request request = new Request(is);

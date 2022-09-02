@@ -20,17 +20,11 @@ public class Logger {
 			return new Thread(r,"log");
 		}
 	});
-	public static final boolean debuggable;
+	public static final boolean debug;
 	private static final boolean _default;
 	private static final PrintStream print;
 	static {
-		String debug = System.getenv("debug");
-		if (null != debug && 0 != debug.length() && !"0".equals(debug)) {
-			debuggable = true;
-		}else{
-			debug = System.getProperty("debug");
-			debuggable = null != debug && 0 != debug.length() && !"0".equals(debug);
-		}
+		debug = Boolean.parseBoolean(System.getenv("debug"))||Boolean.getBoolean("debug");
 		String logFilePath = System.getenv("logfile");
 		if(null==logFilePath)logFilePath=System.getProperty("logfile");
 		OutputStream logOutputStream = null;
@@ -56,18 +50,18 @@ public class Logger {
 	private static final int INFO = 20;
 	private static final int DEBUG = 30;
 
-	public static void debug(final String debug, Object... args) {
-		if (debuggable) {
-			print(Thread.currentThread(), DEBUG, System.currentTimeMillis(), debug, args);
+	public static void debug(final String regex, Object... args) {
+		if (debug) {
+			print(Thread.currentThread(), DEBUG, System.currentTimeMillis(), regex, args);
 		}
 	}
 
-	public static void info(final String info, Object... args) {
-		print(Thread.currentThread(), INFO, System.currentTimeMillis(), info, args);
+	public static void info(final String regex, Object... args) {
+		print(Thread.currentThread(), INFO, System.currentTimeMillis(), regex, args);
 	}
 
-	public static void warn(final String wran, Object... args) {
-		print(Thread.currentThread(), WRAN, System.currentTimeMillis(), wran, args);
+	public static void warn(final String regex, Object... args) {
+		print(Thread.currentThread(), WRAN, System.currentTimeMillis(), regex, args);
 	}
 
 	private static Throwable formatter(StringBuffer sb, String template, Object... args) {
