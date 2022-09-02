@@ -6,6 +6,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Locale;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -48,7 +49,7 @@ public class Logger {
 				: System.out;
 	}
 	private static final SimpleDateFormat sdf = new SimpleDateFormat(
-			"yyyy/MM/dd hh:mm:ss.SSS");
+			"yyyy/MM/dd hh:mm:ss.SSS", Locale.CHINA);
 	private static final Pattern m = Pattern.compile("\\{(\\d*)}");
 	private static final int ERROR = 0;
 	private static final int WRAN = 10;

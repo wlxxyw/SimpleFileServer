@@ -31,7 +31,7 @@ public class DoPostServlet extends Servlet{
 		if(matchContext(req)){
 			if(METHOD_POST.equals(req.getMethod())){
 				String path = req.getPath();
-				Logger.debug("文件上传请求:{}", path);
+				Logger.info("文件上传请求:{}", path);
 				File dir = new File(workPath + path.substring(context.length()));
 				try{
 					MultipartUploadRequest request = new MultipartUploadRequest(req);

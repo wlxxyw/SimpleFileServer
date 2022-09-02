@@ -31,11 +31,11 @@ public class DoGetServlet extends Servlet{
 				String action = req.getParam("action");
 				File f = new File(workPath + path.substring(context.length()));
 				if (!f.exists()) {
-					Logger.info("DoGetServlet: {}文件不存在!", f.getAbsolutePath());
+					Logger.warn("DoGetServlet: {}文件不存在!", f.getAbsolutePath());
 					return false;
 				}
 				if (f.isFile()) {
-					Logger.debug("{} --> {}", path, f.getAbsolutePath());
+					Logger.info("download ing {} --> {}", path, f.getAbsolutePath());
 					String lastModified = String.valueOf(f.lastModified());
 					String ifLastModified = req.getHeader("If-Modified-Since");
 					if (!lastModified.equals(ifLastModified)) {
@@ -55,12 +55,13 @@ public class DoGetServlet extends Servlet{
 					}
 				} else {
 					if (null == action) {
+						Logger.info("Get template!");
 						res.setCode(ResponseCode.OK);
 						res.getHeaders().put("Content-Type", DEFAULT_HTML);
 						res.setBody(HTML_TEMPLATE);
 					} else {
 						if (f.isDirectory()) {
-							Logger.debug("获取文件列表:{}", f.getAbsolutePath());
+							Logger.info("获取文件列表:{}", f.getAbsolutePath());
 							res.setCode(ResponseCode.OK);
 							res.getHeaders().put("Content-Type", DEFAULT_JSON);
 							res.setBody(toJson(fileList(f.listFiles())).getBytes(UTF8));
