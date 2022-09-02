@@ -1,8 +1,11 @@
 package xyw;
 
 import java.io.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -11,7 +14,7 @@ public class Tool {
 	public static Integer TIME_OUT = 1000;
 	public static Integer POOL_SIZE = 32;
 	private static final ScheduledExecutorService pool = Executors.newScheduledThreadPool(POOL_SIZE);
-	
+
 	/**
 	 * byte数组拼接
 	 * @param bss 多个byte数组
@@ -67,26 +70,18 @@ public class Tool {
 		}
 		return result.toArray(new byte[result.size()][]);
 	}
-	public static class ReadLineStrust{
-		ReadLineStrust(byte[] line,InputStream input,boolean endWithNewLine){
-			this.line = line;
-			this.input = input;
-			this.endWithNewLine = endWithNewLine;
-		}
-		public byte[] line;
-		public final InputStream input;
-		public boolean endWithNewLine;
+	public static byte[] readLine(InputStream is){
+		return readLine(is,1);
 	}
-
 	/**
-	 * 读取流 直到遇到\r\n \n\r \r \n 中一种
+	 * 读取流 直到遇到\r\n 或者 \n
 	 * @param is 输入流
-	 * @param keep 保留换行子节
-	 * @return ReadLineStrust 结构体
+	 * @return 字节数组
 	 */
-	public static ReadLineStrust readLine(InputStream is,int retryTimes,boolean keep){
+	public static byte[] readLine(InputStream is,int retryTimes){
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
 		int _retryTimes = 0;
+		boolean next = false;
 		try {
 			while(true){
 				int b = is.read();
@@ -100,22 +95,22 @@ public class Tool {
 				}else{
 					_retryTimes = 0;
 				}
-				if('\r'==b||'\n'==b){
-					if(keep){baos.write(b);}
-					int _b = is.read();
-					if(('\r'==_b||'\n'==_b)&&_b!=b){
-						if(keep){baos.write(b);}
-						return new ReadLineStrust(baos.toByteArray(),is,true);
-					}else{
-						return new ReadLineStrust(baos.toByteArray(),append(true,new ByteArrayInputStream(new byte[]{(byte) _b}),is),true);
-					}
+				if('\n'==b){
+					return baos.toByteArray();
+				}
+				if(next){
+					baos.write('\r');
+				}
+				if('\r'==b){
+					next = true;
+					continue;
 				}
 				baos.write(b);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
-		return new ReadLineStrust(baos.toByteArray(),is,false);
+		return baos.toByteArray();
 	}
 	/**
 	 * 将in写入out直到遇到 stopbytes 停止写入或者in没有next
@@ -128,19 +123,23 @@ public class Tool {
 		byte[] buffer = new byte[stopbytes.length];
 		int index = 0;
 		try {
-			int readnum = is.read(buffer);
-			if(readnum < buffer.length){
-				if(readnum>0)out.write(buffer,0,readnum);
+			int readNum = is.read(buffer);
+			if(readNum < buffer.length){
+				if(readNum>0)out.write(buffer,0,readNum);
 				return false;
 			}
 			while(true){
 				if(equals(stopbytes, buffer,index)){
+					Logger.debug("writeUntil num:{}",readNum);
 					return true;
 				}
 				int b = is.read();
 				if(b==-1){
-					out.write(buffer,index,buffer.length-index);
-					out.write(buffer,0,index);
+					byte[] _buffer = new byte[buffer.length];
+					System.arraycopy(buffer,index,_buffer,0,buffer.length-index);
+					System.arraycopy(buffer,0,_buffer,buffer.length-index,index);
+					out.write(_buffer,0,buffer.length);
+					Logger.debug("write num:{} until endWith {}!",readNum,new String(_buffer));
 					return false;
 				}else{
 					out.write(buffer[index]);
@@ -193,8 +192,8 @@ public class Tool {
 	 * @return 内容长度
 	 * @throws IOException
 	 */
-	public static Integer link(InputStream is,OutputStream os,boolean closeIs, boolean closeOs) throws IOException{
-		int length = 0;
+	public static long link(InputStream is,OutputStream os,boolean closeIs, boolean closeOs) throws IOException{
+		long length = 0;
 		byte[] buffer = new byte[BUFFER_SIZE];
 		while(true){
 			int size = is.read(buffer);
@@ -224,14 +223,13 @@ public class Tool {
 			@Override
 			public int read() throws IOException {
 				long start = System.currentTimeMillis();
-				Future<Integer> data = pool.submit(new Callable<Integer>() {
-					@Override
-					public Integer call() throws Exception {
-						return is.read();
-					}
-				});
 				try {
-					return data.get(timeout, TimeUnit.MILLISECONDS);
+					return waitAction(new Callable<Integer>() {
+						@Override
+						public Integer call() throws Exception {
+							return is.read();
+						}
+					},timeout);
 				}catch (TimeoutException e){
 					Logger.warn("timeout:{}-{}",start,System.currentTimeMillis());
 					return -1;
@@ -239,6 +237,27 @@ public class Tool {
 					e.printStackTrace();
 					return -1;
 				}
+			}
+			@Override
+			public void close() throws IOException {
+				is.close();
+			}
+		};
+	}
+	public static InputStream limitInputStream(final InputStream is,final long limitSize){
+		return new InputStream(){
+			AtomicInteger readNum = new AtomicInteger(0);
+			@Override
+			public int read() throws IOException {
+				if(readNum.getAndIncrement()<limitSize){
+					return is.read();
+				}
+				Logger.warn("limitInputStream over read!");
+				return -1;
+			}
+			@Override
+			public void close() throws IOException {
+				is.close();
 			}
 
 		};
@@ -260,8 +279,8 @@ public class Tool {
 			}
 			@Override
 			public void close() throws IOException {
-				super.close();
-				Logger.debug("logInputStream >> \n{}", buffer.toString());
+				is.close();
+				Logger.debug("logInputStream >> \n{}\n>>>close<<<", buffer.toString());
 			}
 
 		};
@@ -411,6 +430,8 @@ public class Tool {
 	public static boolean equals(byte[] bs1,byte[] bs2,int index){
 		if((null==bs1)^(null==bs2)){
 			return false;
+		}else if(bs1==null){
+			return true;
 		}
 		if(bs1.length!=bs2.length){
 			return false;
@@ -426,49 +447,6 @@ public class Tool {
 			if(bs1[i]!=bs2[_i])return false;
 		}
 		return true;
-	}
-	public static String toJSON(Map<?, ?> map){
-		boolean first = true;
-		StringBuilder builder = new StringBuilder("{");
-		for(Map.Entry<?, ?> entry:map.entrySet()){
-			if(first){
-				first=false;
-			}else{
-				builder.append(",");
-			}
-			builder.append(safeJson(entry.getKey())).append(":").append(safeJson(entry.getValue()));
-		}
-		builder.append("}");
-		return builder.toString();
-	}
-	public static String toJSON(Collection<?> collection){
-		boolean first = true;
-		StringBuilder builder = new StringBuilder("[");
-		for(Object obj:collection){
-			if(first){
-				first=false;
-			}else{
-				builder.append(",");
-			}
-			builder.append(safeJson(obj));
-		}
-		builder.append("]");
-		return builder.toString();
-	}
-	private static String safeJson(Object obj){
-		if(null==obj){
-			return "null";
-		}
-		if(obj instanceof String){
-			return "\""+((String)obj).replaceAll("\\\\", "\\\\").replaceAll("\"", "\\\"")+"\"";
-		}
-		if(obj instanceof Map){
-			return toJSON((Map<?, ?>)obj);
-		}
-		if(obj instanceof Collection){
-			return toJSON((Collection<?>)obj);
-		}
-		return String.valueOf(obj);
 	}
 
 	private static final char[] toBase64 = {
@@ -523,5 +501,197 @@ public class Tool {
 			dst[dp++] = (byte)(bits >>  8);
 		}
 		return dst;
+	}
+	public static String toJson(Object obj){
+		/*
+		 * 避免对象间循环嵌套导致堆栈溢出
+		 * 原打算用 对象内存地址比较,但java的GC会导致对象的地址发生变化(在==比较的一瞬间地址是有效的,存储地址后发生过一次GC就不能保证地址仍然有效)
+		 * equals 方法会调用 hashCode方法, 部分对象的hashCode方法会递归调用子元素的hashCode方法,又会导致相互调用导致堆栈异常
+		 * 目前按class分组, 用 == 判断是否已进行操作
+		 */
+		Map<Class<?>,Collection<Value<?>>> cache = new HashMap<Class<?>,Collection<Value<?>>>();
+		return toJson(obj,"$",cache);
+	}
+	private static String toJson(Object obj,String thisPath,Map<Class<?>,Collection<Value<?>>> cache){
+		if(null==obj){//判空
+			return "null";
+		}
+		if(obj instanceof String){//String
+			return "\""+((String)obj).replaceAll("\\\\", "\\\\").replaceAll("\"", "\\\"")+"\"";
+		}
+		if(obj instanceof Character || obj instanceof Boolean || obj instanceof Number){//判 基础类型
+			return String.valueOf(obj);
+		}
+		Class<?> clazz = obj.getClass();
+		Collection<Value<?>> cacheCollection;
+		if(cache.containsKey(clazz)){
+			cacheCollection = cache.get(clazz);
+		}else{
+			cacheCollection = new ArrayList<Value<?>>();
+			cache.put(clazz, new ArrayList<Value<?>>());
+		}
+		Value<?> ref = null;
+		for(Value<?> oneCache:cacheCollection){
+			if(oneCache.value==obj){
+				ref = oneCache;break;
+			}
+		}
+		if(null!=ref){
+			return new Ref(parent(thisPath),ref.path).toString();
+		}else{
+			cacheCollection.add(new Value<Object>(obj,thisPath));
+		}
+		if(obj instanceof Map){
+			Map<?, ?> map = (Map<?, ?>)obj;
+			StringBuilder builder = new StringBuilder("{");
+			int index = 0;
+			for(Map.Entry<?, ?> entry:map.entrySet()){
+				if(index>0){builder.append(",");}
+				if(!(entry.getKey() instanceof String)){throw new RuntimeException("Map.Entry.getKey() must return String!");}
+				String key = "\""+((String)entry.getKey()).replaceAll("\\\\", "\\\\").replaceAll("\"", "\\\"")+"\"";
+				String value = toJson(entry.getValue(),thisPath+"."+entry.getKey(),cache);
+				builder.append(key).append(":").append(value);
+				index++;
+			}
+			builder.append("}");
+			return builder.toString();
+		}
+		if(obj instanceof Collection){
+			Collection<?> collection = (Collection<?>)obj;
+			StringBuilder builder = new StringBuilder("[");
+			int index = 0;
+			for(Object _obj:collection){
+				if(index>0){builder.append(",");}
+				builder.append(toJson(_obj,thisPath+"["+index+"]",cache));
+				index++;
+			}
+			builder.append("]");
+			return builder.toString();
+		}
+		if(obj.getClass().isArray()){
+			Object[] array = (Object[])obj;
+			StringBuilder builder = new StringBuilder("[");
+			int index = 0;
+			for(Object _obj:array){
+				if(index>0){builder.append(",");}
+				builder.append(toJson(_obj,thisPath+"["+index+"]",cache));
+				index++;
+			}
+			builder.append("]");
+			return builder.toString();
+		}
+		StringBuilder builder = new StringBuilder("{");
+		int index = 0;
+		final Method[] methods = clazz.getDeclaredMethods();
+		for(Field field:clazz.getDeclaredFields()){
+			String key = field.getName();
+			boolean match = false;
+			for(Method method:methods){
+				if(method.getName().equalsIgnoreCase("get"+key)&&method.getParameterTypes().length==0&&method.getReturnType()==field.getType()){
+					match = true;break;
+				}
+			}
+			if(match){
+				if(index>0){builder.append(",");}
+				boolean accessible = field.isAccessible();
+				field.setAccessible(true);
+				String value;
+				try{
+					value = toJson(field.get(obj),thisPath+"."+key,cache);
+				}catch (IllegalAccessException e){
+					value = "";
+				}
+				field.setAccessible(accessible);
+				builder.append(key).append(":").append(value);
+				index++;
+			}
+
+		}
+		builder.append("}");
+		return builder.toString();
+	}
+	private static String parent(String thisPath){
+		boolean isArray = thisPath.endsWith("]");
+		for(int i=thisPath.length()-1;i>=0;i--){
+			if((isArray&&thisPath.charAt(i)=='[')||thisPath.charAt(i)=='.')return thisPath.substring(0,i);
+		}
+		return "";
+	}
+	private static String[] subSame(String...compares){
+		if(null==compares||compares.length<2){throw new UnsupportedOperationException("too little compares");}
+		int sameIndex = 0;
+		String minLength = null;
+		for(String compare:compares){
+			if(null==minLength||compare.length()<minLength.length()){
+				minLength=compare;
+			}
+		}
+		over:
+		for(int i=0;i<minLength.length();i++){
+			char c = minLength.charAt(i);
+			for(String compare:compares){
+				if(compare.equals(minLength)){
+					continue;
+				}
+				if(compare.charAt(i)!=c){
+					break over;
+				}
+			}
+			if(c=='.'||c=='['){
+				sameIndex = i;
+			}
+			if(c==']'||i==compares[0].length()-1){
+				sameIndex = i+1;
+			}
+		}
+		if(sameIndex==0){
+			return compares;
+		}else{
+			String[] result = new String[compares.length];
+			for(int i=0;i<compares.length;i++){
+				result[i] = compares[i].substring(sameIndex);
+			}
+			return result;
+		}
+	}
+	static class Value<T>{
+		Value(T v, String p){
+			this.value = v;
+			this.path = p;
+		}
+		T value;
+		String path;
+	}
+	static class Ref{
+		Ref(String thisPath,String ref){
+			if(thisPath.length()==0){
+				this.ref = ref;
+				return;
+			}
+			if(thisPath.equals(ref)){
+				this.ref = "@";
+				return;
+			}
+			String[] subSame = subSame(thisPath,ref);
+			if(subSame[0].length()==0){
+				String _ref = "@"+subSame[1];
+				this.ref = ref.length()>_ref.length()?_ref:ref;
+				return;
+			}else if(subSame[1].length()==0){
+				String _ref = subSame[0].replaceAll("\\.[^.]+","../");
+				_ref = _ref.substring(0,_ref.length()-1);
+				this.ref = ref.length()>_ref.length()?_ref:ref;
+				return;
+			}
+			this.ref = ref;
+
+		}
+		String ref;
+
+		@Override
+		public String toString() {
+			return "{\"$ref\":\""+ref+"\"}";
+		}
+
 	}
 }

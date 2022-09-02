@@ -19,16 +19,16 @@ public class Logger {
 			return new Thread(r,"log");
 		}
 	});
-	public static final boolean debugable;
+	public static final boolean debuggable;
 	private static final boolean _default;
 	private static final PrintStream print;
 	static {
 		String debug = System.getenv("debug");
 		if (null != debug && 0 != debug.length() && !"0".equals(debug)) {
-			debugable = true;
+			debuggable = true;
 		}else{
 			debug = System.getProperty("debug");
-			debugable = null != debug && 0 != debug.length() && !"0".equals(debug);
+			debuggable = null != debug && 0 != debug.length() && !"0".equals(debug);
 		}
 		String logFilePath = System.getenv("logfile");
 		if(null==logFilePath)logFilePath=System.getProperty("logfile");
@@ -49,14 +49,14 @@ public class Logger {
 	}
 	private static final SimpleDateFormat sdf = new SimpleDateFormat(
 			"yyyy/MM/dd hh:mm:ss.SSS");
-	private static final Pattern m = Pattern.compile("\\{([0-9]*)\\}");
+	private static final Pattern m = Pattern.compile("\\{(\\d*)}");
 	private static final int ERROR = 0;
 	private static final int WRAN = 10;
 	private static final int INFO = 20;
 	private static final int DEBUG = 30;
 
 	public static void debug(final String debug, Object... args) {
-		if (debugable) {
+		if (debuggable) {
 			print(Thread.currentThread(), DEBUG, System.currentTimeMillis(), debug, args);
 		}
 	}
@@ -77,11 +77,10 @@ public class Logger {
 			if (null != _index && _index.trim().length() > 0) {
 				matcher.appendReplacement(
 						sb,
-						String.valueOf(args[Integer.parseInt(_index)]).replace(
-								"\\", "\\\\"));
+						String.valueOf(args[Integer.parseInt(_index)]).replace("\\", "\\\\").replace("$","\\$"));
 			} else {
 				matcher.appendReplacement(sb, String.valueOf(args[index])
-						.replace("\\", "\\\\"));
+						.replace("\\", "\\\\").replace("$","\\$"));
 			}
 			if (index++ == args.length) {
 				break;
@@ -128,7 +127,6 @@ public class Logger {
 						t.printStackTrace(print);
 					}
 				}
-
 			}
 		});
 	}

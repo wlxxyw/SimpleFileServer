@@ -65,7 +65,7 @@ public class SimpleDynamicWebServer {
                     public void run() {
                         try {
                             InputStream is = waitTimeout(socket.getInputStream());
-                            if(Logger.debugable){
+                            if(Logger.debuggable){
                                 is = logInputStream(is,16*1024);
                             }
                         	Request request = new Request(is);
@@ -102,7 +102,7 @@ public class SimpleDynamicWebServer {
     }
         
     public static void main(String[] args) {
-    	System.out.println("java -jar this.jar [port [workpath [context [username password]]]] \ndefault port: 8080\ndefault workpath: ./\ndefault context: /\ndefault no username&password");
+    	System.out.println("java -jar this.jar [port [workpath [context [username password]]]] \ndefault port: 8088\ndefault workpath: ./\ndefault context: /\ndefault no username&password");
     	List<Handler> handlers = new ArrayList<Handler>();
         int port = DEFAULT_PORT;
         String workPath = System.getProperty("user.dir");

@@ -88,7 +88,7 @@ public class Response {
 		this.body = new ByteArrayInputStream(body);
 	}
 	public void setBody(Map<?, ?> data) {
-		setBody(Tool.toJSON(data));
+		setBody(Tool.toJson(data));
 	}
 	public void setBody(String msg) {
 		setBody(msg.getBytes(UTF8));

@@ -10,6 +10,7 @@ import java.util.Map;
 
 import static xyw.Constant.UTF8;
 import static xyw.Tool.*;
+import static xyw.Tool.readLine;
 
 @Getter
 public class Request {
@@ -21,19 +22,19 @@ public class Request {
 	boolean skip = false;
 	public Request(InputStream is){
 		init(is);
-		initHeader(is);
-		this.body = is;
 	}
-	private InputStream init(InputStream is){
-		ReadLineStrust readLineStrust = readLine(is,5,false);
-		String line = new String(readLineStrust.line,UTF8);
-		Logger.debug("接收到请求 >> {}",line);
-		if(isEmpty(line)){this.skip = true;return is;}
-		String[] strs = line.split("\\s{1,}");
+	private void init(InputStream is){
+		byte[] firstLine = readLine(is);
+		if(0==firstLine.length){
+			this.skip = true;
+			return;
+		}
+		String line = new String(firstLine,UTF8);
+		String[] strs = line.split("\\s+");
 		if(strs.length!=3){
 			Logger.info("无法分析的请求: {}", line);
 			this.skip = true;
-			return is;
+			return;
 		}
 		this.method = strs[0];
 		String path = strs[1];
@@ -58,25 +59,26 @@ public class Request {
 				}
 			}
 		}
-		return is;
-	}
-	private InputStream initHeader(InputStream is){
 		while(true){
-			ReadLineStrust header = readLine(is,5,false);
-			String headerStr = new String(header.line,UTF8);
+			byte[] header = readLine(is,5);
+			String headerStr = new String(header,UTF8);
 			Logger.debug("请求头 >> {}",headerStr);
 			if(isEmpty(headerStr)){
 				break;
 			}
-			String[] strs = headerStr.split(":\\s",2);
-			if(2==strs.length){
-				this.headers.put(strs[0], strs[1].trim());
+			String[] headers = headerStr.split(":\\s",2);
+			if(2==headers.length){
+				this.headers.put(headers[0], headers[1].trim());
 			}else{
 				Logger.warn("无法分析的请求头:{}", headerStr);
 				throw new RuntimeException("无法分析的请求头:"+headerStr);
 			}
 		}
-		return is;
+		if(headers.containsKey("Content-Length")){
+			this.body = limitInputStream(is,Long.parseLong(headers.get("Content-Length")));
+		}else{
+			this.body = is;
+		}
 	}
 	public boolean skip(){return skip;}
 	public String getParam(String key){
