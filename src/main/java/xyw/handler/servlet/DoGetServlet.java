@@ -40,7 +40,7 @@ public class DoGetServlet extends Servlet{
 						return true;
 					}
 					if(f.isFile()){
-						Logger.info("download ing {} --> {}", path, f.getAbsolutePath());
+						Logger.info("downloading {} --> {}", path, f.getAbsolutePath());
 						if(config.useCache){
 							String lastModified = String.valueOf(f.lastModified());
 							res.getHeaders().put("Last-Modified", lastModified);
@@ -84,12 +84,14 @@ public class DoGetServlet extends Servlet{
 			list.add(map);
 		}else{
 			for(File file:files){
-				Map<String, Object> map = new HashMap<String, Object>();
-				map.put("name", file.getName());
-				map.put("isFile", file.isFile());
-				map.put("size", file.length());
-				map.put("lastModified", file.lastModified());
-				list.add(map);
+				if(file.isFile()||file.isDirectory()){
+					Map<String, Object> map = new HashMap<String, Object>();
+					map.put("name", file.getName());
+					map.put("isFile", file.isFile());
+					map.put("size", file.length());
+					map.put("lastModified", file.lastModified());
+					list.add(map);
+				}
 			}
 		}
 		return list;
