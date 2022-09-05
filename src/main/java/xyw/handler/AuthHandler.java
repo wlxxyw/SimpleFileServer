@@ -17,12 +17,12 @@ public class AuthHandler implements Handler {
 	private static final String AUTH_BASIC = "Basic";
 	private final String AUTH;
 	private final List<Pattern> whiteList;
-	public AuthHandler(String name,String pwd,String ...whiteUrls){
+	public AuthHandler(String name,String pwd,String ...resources){
 		Logger.info("init AuthHandler: {}:{}", name,pwd);
 		AUTH = name+":"+pwd;
 		whiteList = new ArrayList<Pattern>();
-		if(null!=whiteUrls&&whiteUrls.length>0){
-			for(String whiteUrl : whiteUrls){
+		if(null!=resources&&resources.length>0){
+			for(String whiteUrl : resources){
 				whiteList.add(Pattern.compile(whiteUrl));
 			}
 		}
@@ -31,11 +31,12 @@ public class AuthHandler implements Handler {
 	public boolean handler(Request req, Response res) {
 		String url = req.getPath();
 		String method = req.getMethod();
-		if(!METHOD_POST.equals(method))
-		for(Pattern p:whiteList){
-			if(p.matcher(url).find()){
-				Logger.debug("认证白名单地址:{}",url);
-				return false;
+		if(METHOD_GET.equals(method)){
+			for(Pattern p:whiteList){
+				if(p.matcher(url).find()){
+					Logger.debug("认证白名单地址:{}",url);
+					return false;
+				}
 			}
 		}
 		boolean pass = false;

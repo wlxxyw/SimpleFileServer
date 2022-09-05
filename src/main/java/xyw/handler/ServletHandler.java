@@ -21,7 +21,7 @@ public class ServletHandler implements Handler {
 			if(servlet.doServlet(req, res)){
 				Logger.debug("Servlet{} 处理了请求:{} {}",servlet.getClass().getName(),req.getMethod(),req.getPath());
 				return true;
-			};
+			}
 		}
 		return false;
 	}
