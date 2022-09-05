@@ -122,7 +122,17 @@ public class SimpleDynamicWebServer {
         if(args.length > 4){
         	handlers.add(new AuthHandler(args[3], args[4],"[/]{0,1}favicon\\.ico"));
         }
-        handlers.add(new ServletHandler(new ResourceServlet(tempFile("static.zip"), "/"),new DoGetServlet(workPath, context),new DoPostServlet(workPath, context),new DoPutServlet(workPath, context),new DoDeleteServlet(workPath, context)));
+        ServletConfig resourceConfig = new ServletConfig(tempFile("static.zip"),context,false,true,false);
+        ServletConfig defaultConfig = new ServletConfig(workPath,context,true,true,true);
+        handlers.add(
+                new ServletHandler(
+                        new DoGetServlet(resourceConfig),
+                        new DoGetServlet(defaultConfig),
+                        new DoPostServlet(defaultConfig),
+                        new DoPutServlet(defaultConfig),
+                        new DoDeleteServlet(defaultConfig)
+                )
+        );
         new SimpleDynamicWebServer(port,handlers).start();
     }
 }

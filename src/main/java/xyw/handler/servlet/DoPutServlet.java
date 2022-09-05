@@ -10,18 +10,15 @@ import xyw.Tool;
 import xyw.Response.ResponseCode;
 
 public class DoPutServlet extends Servlet{
-	private final String workPath;
-	public DoPutServlet(String workPath,String context){
-		super(context);
-		if(!workPath.endsWith(File.separator)){workPath += File.separator;}
-		this.workPath = workPath;
+	public DoPutServlet(ServletConfig config){
+		super(config);
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
 		if(matchContext(req)) {
 			if (METHOD_PUT.equals(req.getMethod())) {
 				String path = req.getPath();
-				String dir = "";
+				String dir;
 				try {
 					dir = new String(Tool.read(req.getBody(), false), UTF8);
 				} catch (IOException e) {
@@ -30,7 +27,8 @@ public class DoPutServlet extends Servlet{
 					return true;
 				}
 				Logger.info("新建文件夹请求:{}", dir);
-				File f = new File(workPath + path.substring(context.length()), dir);
+				File f = new File(baseFile, path.substring(config.context.length()));
+				f = new File(f,dir);
 				if (f.exists()) {
 					quickFinish(res, ResponseCode.ERROR, "文件路径已存在!");
 				} else {
@@ -44,7 +42,7 @@ public class DoPutServlet extends Servlet{
 						quickFinish(res, ResponseCode.ERROR, t.getLocalizedMessage());
 					}
 				}
-				return true;
+				return config.defaultReturn;
 			}
 		}
 		return false;

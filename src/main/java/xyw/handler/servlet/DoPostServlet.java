@@ -20,11 +20,8 @@ public class DoPostServlet extends Servlet{
 	private static final String DISPOSITION = "Content-Disposition";
 	private static final String MULTIPART = "multipart/";
 	private static final String BOUNDARY_FLAG = "boundary=";
-	private final String workPath;
-	public DoPostServlet(String workPath,String context){
-		super(context);
-		if(!workPath.endsWith(File.separator)){workPath += File.separator;}
-		this.workPath = workPath;
+	public DoPostServlet(ServletConfig config){
+		super(config);
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
@@ -32,22 +29,29 @@ public class DoPostServlet extends Servlet{
 			if(METHOD_POST.equals(req.getMethod())){
 				String path = req.getPath();
 				Logger.info("文件上传请求:{}", path);
-				File dir = new File(workPath + path.substring(context.length()));
+				File dir = new File(baseFile, path.substring(config.context.length()));
 				try{
 					MultipartUploadRequest request = new MultipartUploadRequest(req);
 					while (request.hasNext()) {
 						FormFile file = request.next();
-						if(!file.saveAs(new File(dir,file.getFileName()))){
+						File saveTo = new File(dir,file.getFileName());
+						if(saveTo.exists()){
+							quickFinish(res,ResponseCode.ERROR,"文件已存在!");
+							Logger.warn("文件已存在!");
+							return true;
+						}else if(!file.saveAs(saveTo)){
 							quickFinish(res,ResponseCode.ERROR,"文件转存失败!");
+							Logger.warn("文件转存失败!");
+							return true;
 						}
-						Logger.debug("save temp file {} to {}",file.getTempFile().getAbsolutePath(),dir.getAbsolutePath()+File.separator+file.getFileName());
 					}
 					quickFinish(res,ResponseCode.OK,"上传成功!");
 				}catch (Throwable t){
 					t.printStackTrace();
+					Logger.warn(t.getLocalizedMessage(),t);
 					quickFinish(res, ResponseCode.ERROR,t.getLocalizedMessage());
 				}
-				return true;
+				return config.defaultReturn;
 			}
 		}
 		return false;
@@ -153,9 +157,6 @@ public class DoPostServlet extends Servlet{
 			this.tempFile = tempFile;
 		}
 		public boolean saveAs(File file){
-			if(file.exists()){
-				return false;
-			}
 			try{
 				return tempFile.length() == Tool.link(new FileInputStream(tempFile),new FileOutputStream(file),true,true);
 			}catch (IOException e){return false;}

@@ -1,7 +1,7 @@
 package xyw.handler.servlet;
 
 import static xyw.Constant.*;
-import static xyw.Tool.*;
+import static xyw.Tool.toJson;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -17,11 +17,8 @@ import xyw.Response;
 import xyw.Response.ResponseCode;
 
 public class DoGetServlet extends Servlet{
-	private final String workPath;
-	public DoGetServlet(String workPath,String context){
-		super(context);
-		if(!workPath.endsWith(File.separator)){workPath += File.separator;}
-		this.workPath = workPath;
+	public DoGetServlet(ServletConfig config){
+		super(config);
 	}
 	@Override
 	public boolean doServlet(Request req, Response res) {
@@ -29,48 +26,52 @@ public class DoGetServlet extends Servlet{
 			if (METHOD_GET.equals(req.getMethod())) {
 				String path = req.getPath();
 				String action = req.getParam("action");
-				File f = new File(workPath + path.substring(context.length()));
+				File f = new File(baseFile, path.substring(config.context.length()));
 				if (!f.exists()) {
-					Logger.warn("DoGetServlet: {}文件不存在!", f.getAbsolutePath());
-					return false;
+					if(config.defaultReturn)Logger.warn("DoGetServlet: {}文件不存在!", f.getAbsolutePath());
+					return config.defaultReturn;
 				}
-				if (f.isFile()) {
-					Logger.info("download ing {} --> {}", path, f.getAbsolutePath());
-					String lastModified = String.valueOf(f.lastModified());
-					String ifLastModified = req.getHeader("If-Modified-Since");
-					if (!lastModified.equals(ifLastModified)) {
-						try {
-							res.setCode(ResponseCode.OK);
-							res.getHeaders().put("Content-Type", contentType(f.getName()) + "; charset=utf-8");
-							res.getHeaders().put("Content-Length", String.valueOf(f.length()));
-							res.getHeaders().put("Last-Modified", lastModified);
-							res.setBody(new FileInputStream(f));
-						} catch (IOException e) {
-							e.printStackTrace();
-							quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());
-						}
-					} else {
-						Logger.debug("{} user cache!", path);
-						res.setCode(ResponseCode.NOT_MODIFIED);
-					}
-				} else {
-					if (null == action) {
+				if (null == action){
+					if(f.isDirectory()){
 						Logger.info("Get template!");
 						res.setCode(ResponseCode.OK);
 						res.getHeaders().put("Content-Type", DEFAULT_HTML);
 						res.setBody(HTML_TEMPLATE);
-					} else {
-						if (f.isDirectory()) {
-							Logger.info("获取文件列表:{}", f.getAbsolutePath());
+						return true;
+					}
+					if(f.isFile()){
+						Logger.info("download ing {} --> {}", path, f.getAbsolutePath());
+						if(config.useCache){
+							String lastModified = String.valueOf(f.lastModified());
+							res.getHeaders().put("Last-Modified", lastModified);
+							String ifLastModified = req.getHeader("If-Modified-Since");
+							if (lastModified.equals(ifLastModified)) {
+								Logger.debug("{} user cache!", path);
+								res.setCode(ResponseCode.NOT_MODIFIED);
+								return true;
+							}
+						}
+						try {
 							res.setCode(ResponseCode.OK);
-							res.getHeaders().put("Content-Type", DEFAULT_JSON);
-							res.setBody(toJson(fileList(f.listFiles())).getBytes(UTF8));
-						} else {
-							return false;
+							res.getHeaders().put("Content-Type", contentType(f.getName()) + "; charset=utf-8");
+							res.getHeaders().put("Content-Length", String.valueOf(f.length()));
+							res.setBody(new FileInputStream(f));
+							return true;
+						} catch (IOException e) {
+							e.printStackTrace();
+							return quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());
 						}
 					}
+				}else if(config.useAction){
+					if (f.isDirectory()) {
+						Logger.info("获取文件列表:{}", f.getAbsolutePath());
+						res.setCode(ResponseCode.OK);
+						res.getHeaders().put("Content-Type", DEFAULT_JSON);
+						res.setBody(toJson(fileList(f.listFiles())).getBytes(UTF8));
+						return true;
+					}
 				}
-				return true;
+				return config.defaultReturn;
 			}
 		}
 		return false;
