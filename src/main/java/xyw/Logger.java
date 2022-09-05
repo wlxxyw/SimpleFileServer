@@ -6,7 +6,6 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
-import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -24,7 +23,7 @@ public class Logger {
 	public static final boolean debug;
 	private static final boolean _default;
 	private static final PrintStream print;
-	private static final SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd hh:mm:ss.SSS", Locale.CHINA);
+	private static final SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss.SSS");
 	private static final Pattern m = Pattern.compile("\\{(\\d*)}");
 	private static final int ERROR = 0;
 	private static final int WRAN = 10;
@@ -53,16 +52,16 @@ public class Logger {
 
 	public static void debug(final String regex, Object... args) {
 		if (debug) {
-			print(Thread.currentThread(), DEBUG, System.currentTimeMillis(), regex, args);
+			print(Thread.currentThread(), DEBUG, new Date(), regex, args);
 		}
 	}
 
 	public static void info(final String regex, Object... args) {
-		print(Thread.currentThread(), INFO, System.currentTimeMillis(), regex, args);
+		print(Thread.currentThread(), INFO, new Date(), regex, args);
 	}
 
 	public static void warn(final String regex, Object... args) {
-		print(Thread.currentThread(), WRAN, System.currentTimeMillis(), regex, args);
+		print(Thread.currentThread(), WRAN, new Date(), regex, args);
 	}
 
 	private static Throwable formatter(StringBuffer sb, String template, Object... args) {
@@ -90,7 +89,7 @@ public class Logger {
 		return null;
 	}
 
-	private static void print(final Thread t,final int level,final Long time,final String msg,final Object...args) {
+	private static void print(final Thread t,final int level,final Date time,final String msg,final Object...args) {
 		LOG_POOL.execute(new Runnable() {
 			@Override
 			public void run() {
@@ -113,7 +112,7 @@ public class Logger {
 				cache.append(t.getName());
 				cache.append(" ");
 				synchronized (sdf){
-					cache.append(sdf.format(new Date(time)));
+					cache.append(sdf.format(time));
 				}
 				cache.append(" ");
 				StringBuffer sub = new StringBuffer();
