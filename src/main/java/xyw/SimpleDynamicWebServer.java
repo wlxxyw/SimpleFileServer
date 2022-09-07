@@ -2,6 +2,7 @@ package xyw;
 
 import xyw.handler.AuthHandler;
 import xyw.handler.Handler;
+import xyw.handler.NotFoundHandler;
 import xyw.handler.ServletHandler;
 import xyw.handler.servlet.*;
 
@@ -15,6 +16,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
 
+import static xyw.Constant.TEMPLATE_DIR;
 import static xyw.Tool.*;
 
 public class SimpleDynamicWebServer {
@@ -111,6 +113,8 @@ public class SimpleDynamicWebServer {
             try {
                 port = Integer.parseInt(args[0]);
             } catch (NumberFormatException ignored) {
+                Logger.warn("命令行参数解析失败!");
+                return;
             }
         }
         if (args.length > 1) {
@@ -122,10 +126,12 @@ public class SimpleDynamicWebServer {
         if(args.length > 4){
         	handlers.add(new AuthHandler(args[3], args[4],"[/]{0,1}favicon\\.ico"));
         }
-        ServletConfig resourceConfig = new ServletConfig(tempFile("static.zip"),context,false,true,false);
+        Logger.info("Port:{}, ShareDir:{}",port,workPath);
+        ServletConfig resourceConfig = new ServletConfig(TEMPLATE_DIR,"/",false,true,false);
         ServletConfig defaultConfig = new ServletConfig(workPath,context,true,true,true);
         handlers.add(
                 new ServletHandler(
+                        new DoOptionsServlet(defaultConfig),
                         new DoGetServlet(resourceConfig),
                         new DoGetServlet(defaultConfig),
                         new DoPostServlet(defaultConfig),
@@ -133,6 +139,7 @@ public class SimpleDynamicWebServer {
                         new DoDeleteServlet(defaultConfig)
                 )
         );
+        handlers.add(new NotFoundHandler());
         new SimpleDynamicWebServer(port,handlers).start();
     }
 }

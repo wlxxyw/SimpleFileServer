@@ -20,7 +20,7 @@ public class DoPutServlet extends Servlet{
 				String path = req.getPath();
 				String dir;
 				try {
-					dir = new String(Tool.read(req.getBody(), false), UTF8);
+					dir = new String(Tool.readAsBytes(req.getBody(), false), UTF8);
 				} catch (IOException e) {
 					quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());
 					e.printStackTrace();

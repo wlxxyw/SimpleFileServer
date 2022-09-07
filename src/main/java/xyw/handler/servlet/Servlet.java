@@ -36,7 +36,7 @@ public abstract class Servlet{
 			return false;
 		}
 		if(!path.startsWith(config.context)){
-			Logger.warn("请求地址不匹配!");
+			Logger.debug("请求地址不匹配!{},{}",config.context,path);
 			return false;
 		}
 		return true;

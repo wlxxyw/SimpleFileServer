@@ -19,7 +19,7 @@ public class DoDeleteServlet extends Servlet{
 			if (METHOD_DELETE.equals(req.getMethod())) {
 				String dir;
 				try {
-					dir = new String(Tool.read(req.getBody(), false), UTF8);
+					dir = new String(Tool.readAsBytes(req.getBody(), false), UTF8);
 				} catch (IOException e) {
 					e.printStackTrace();
 					return quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());

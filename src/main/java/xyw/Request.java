@@ -24,7 +24,7 @@ public class Request {
 		init(is);
 	}
 	private void init(InputStream is){
-		byte[] firstLine = readLine(is);
+		byte[] firstLine = readLine(is,false);
 		if(0==firstLine.length){
 			this.skip = true;
 			return;
@@ -60,7 +60,7 @@ public class Request {
 			}
 		}
 		while(true){
-			byte[] header = readLine(is,5);
+			byte[] header = readLine(is,false);
 			String headerStr = new String(header,UTF8);
 			Logger.debug("请求头 >> {}",headerStr);
 			if(isEmpty(headerStr)){

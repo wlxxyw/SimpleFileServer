@@ -6,6 +6,8 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
@@ -21,14 +23,16 @@ public class Logger {
 		}
 	});
 	public static final boolean debug;
-	private static final boolean _default;
-	private static final PrintStream print;
+	private static final PrintStream DEFAULT_LOG = System.out;
+	private static final PrintStream LOG_PRINT;
 	private static final SimpleDateFormat sdf = new SimpleDateFormat("hh:mm:ss.SSS");
-	private static final Pattern m = Pattern.compile("\\{(\\d*)}");
+	private static final Pattern paramPattern = Pattern.compile("\\{(\\d*)}");
 	private static final int ERROR = 0;
 	private static final int WRAN = 10;
 	private static final int INFO = 20;
 	private static final int DEBUG = 30;
+	private static final Map<Integer,String> LOG_FILE_LEVEL = new HashMap<Integer, String>(4);
+	private static final Map<Integer,String> DEFAULT_LEVEL = new HashMap<Integer, String>(4);
 	static {
 		debug = Boolean.parseBoolean(System.getenv("debug"))||Boolean.getBoolean("debug");
 		String logFilePath = System.getenv("logfile");
@@ -44,16 +48,14 @@ public class Logger {
 			}
 		} catch (Throwable ignored) {
 		}
-		_default = null == logOutputStream;
-		print = logOutputStream != null ? new PrintStream(logOutputStream)
-				: System.out;
+		LOG_PRINT = logOutputStream != null ? new PrintStream(logOutputStream):DEFAULT_LOG;
 		sdf.setTimeZone(TimeZone.getTimeZone("GMT+08:00"));
+		LOG_FILE_LEVEL.put(ERROR,"E ");LOG_FILE_LEVEL.put(WRAN,"W ");LOG_FILE_LEVEL.put(INFO,"I ");LOG_FILE_LEVEL.put(DEBUG,"D ");
+		DEFAULT_LEVEL.put(ERROR,"\033[1;31m[ERROR]\033[0m ");DEFAULT_LEVEL.put(WRAN,"\033[1;31m[WRAN]\033[0m ");DEFAULT_LEVEL.put(INFO,"[INFO] ");DEFAULT_LEVEL.put(DEBUG,"\033[1;32m[DEBUG]\033[0m ");
 	}
 
 	public static void debug(final String regex, Object... args) {
-		if (debug) {
-			print(Thread.currentThread(), DEBUG, new Date(), regex, args);
-		}
+		print(Thread.currentThread(), DEBUG, new Date(), regex, args);
 	}
 
 	public static void info(final String regex, Object... args) {
@@ -65,7 +67,7 @@ public class Logger {
 	}
 
 	private static Throwable formatter(StringBuffer sb, String template, Object... args) {
-		Matcher matcher = m.matcher(template);
+		Matcher matcher = paramPattern.matcher(template);
 		int index = 0;
 		while (matcher.find()) {
 			String _index = matcher.group(1);
@@ -94,21 +96,6 @@ public class Logger {
 			@Override
 			public void run() {
 				StringBuilder cache = new StringBuilder();
-				switch (level) {
-					case ERROR:
-						cache.append(!_default ? "E" : "\033[1;31m[ERROR]\033[0m");
-						break;
-					case WRAN:
-						cache.append(!_default ? "W" : "\033[1;31m[WRAN]\033[0m");
-						break;
-					case INFO:
-						cache.append(!_default ? "I" : "[INFO]");
-						break;
-					case DEBUG:
-						cache.append(!_default ? "D" : "\033[1;32m[DEBUG]\033[0m");
-						break;
-				}
-				cache.append(" ");
 				cache.append(t.getName());
 				cache.append(" ");
 				synchronized (sdf){
@@ -118,10 +105,20 @@ public class Logger {
 				StringBuffer sub = new StringBuffer();
 				Throwable t = formatter(sub,msg,args);
 				cache.append(sub);
-				synchronized (print){
-					print.print(cache);
+				synchronized (DEFAULT_LOG){
+					DEFAULT_LOG.print(DEFAULT_LEVEL.get(level));
+					DEFAULT_LOG.print(cache);
 					if(null!=t){
-						t.printStackTrace(print);
+						t.printStackTrace(DEFAULT_LOG);
+					}
+				}
+				if(LOG_PRINT!=DEFAULT_LOG &&(debug || level < DEBUG)){
+					synchronized (LOG_PRINT){
+						LOG_PRINT.print(LOG_FILE_LEVEL.get(level));
+						LOG_PRINT.print(cache);
+						if(null!=t){
+							t.printStackTrace(LOG_PRINT);
+						}
 					}
 				}
 			}

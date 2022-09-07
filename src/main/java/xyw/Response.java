@@ -16,7 +16,7 @@ import static xyw.Constant.*;
 @Getter@Setter
 public class Response {
 	public Response(){
-		this.code = ResponseCode.NOT_FOUNT;
+		this.code = ResponseCode.NOT_FOUND;
 		this.headers = new HashMap<String, String>();
 		this.body = new ByteArrayInputStream(new byte[0]);
 	}
@@ -29,14 +29,14 @@ public class Response {
 		this.headers = new HashMap<String, String>();
 		this.body = new ByteArrayInputStream(new byte[0]);
 	}
-	public static enum ResponseCode{
+	public enum ResponseCode{
 		OK(200,"OK"),
 		MOVED_PERMAENTLY(301,"MOVED_PERMAENTLY"),
 		Found(302,"Found"),
 		SEE_OTHER(303,"SEE_OTHER"),
 		NOT_MODIFIED(304,"Not Modified"),
 		AUTH(401,"NOT_FOUNT","WWW-Authenticate: Basic realm=\"default\"","Content-Type: text/html"),
-		NOT_FOUNT(404,"NOT_FOUNT","Content-Type: text/html"),
+		NOT_FOUND(404,"NOT_FOUNT","Content-Type: text/html"),
 		ERROR(500,"SERVER ERROR","Content-Type: text/html");
 		private final int code;
 		private final String msg;

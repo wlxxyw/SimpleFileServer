@@ -101,7 +101,7 @@ public class DoPostServlet extends Servlet{
 					File tempFile = File.createTempFile("multipart",".dat");
 					byte[] oneline;
 					do{
-						oneline = readLine(is, 5);
+						oneline = readLine(is, false);
 						String line = new String(oneline,UTF8);
 						if(line.contains(":")){
 							header.put(line.split(":")[0], line.split(":")[1].trim());

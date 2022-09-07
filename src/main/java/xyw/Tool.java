@@ -70,47 +70,58 @@ public class Tool {
 		}
 		return result.toArray(new byte[result.size()][]);
 	}
-	public static byte[] readLine(InputStream is){
-		return readLine(is,1);
+	public static int readBreakIsNextLine(InputStream is,byte[] bs){
+		try {
+			for (int i = 0; i < bs.length; i++) {
+				int value = is.read();
+				if(value==-1)return -1;
+				bs[i] = (byte)value;
+				if(bs[i]=='\n')return i;
+			}
+			return bs.length;
+		}catch (IOException e){
+			return -1;
+		}
 	}
 	/**
 	 * 读取流 直到遇到\r\n 或者 \n
 	 * @param is 输入流
 	 * @return 字节数组
 	 */
-	public static byte[] readLine(InputStream is,int retryTimes){
-		ByteArrayOutputStream baos = new ByteArrayOutputStream();
-		int _retryTimes = 0;
+	public static byte[] readLine(InputStream is,boolean keep){
+		ByteArrayOutputStream os = new ByteArrayOutputStream();
+		readLine(is,os,keep);
+		return os.toByteArray();
+	}
+	public static byte[] readLine(InputStream is,OutputStream os,boolean keep){
 		boolean next = false;
 		try {
 			while(true){
 				int b = is.read();
-				if(-1==b){
-					_retryTimes ++;
-					if(_retryTimes<retryTimes){
-						continue;
-					}else{
-						break;
-					}
-				}else{
-					_retryTimes = 0;
-				}
+				if(-1==b)return new byte[0];
 				if('\n'==b){
-					return baos.toByteArray();
+					if(keep){
+						if(next){
+							if(null!=os)os.write('\r');
+						}
+						if(null!=os)os.write('\n');
+					}
+					return next?new byte[]{'\r','\n'}:new byte['\n'];
 				}
 				if(next){
-					baos.write('\r');
+					next = false;
+					if(null!=os)os.write('\r');
 				}
 				if('\r'==b){
 					next = true;
 					continue;
 				}
-				baos.write(b);
+				if(null!=os)os.write(b);
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
+			return null;
 		}
-		return baos.toByteArray();
 	}
 	/**
 	 * 将in写入out直到遇到 stopbytes 停止写入或者in没有next
@@ -130,7 +141,7 @@ public class Tool {
 			}
 			while(true){
 				if(equals(stopbytes, buffer,index)){
-					Logger.debug("writeUntil num:{}",readNum);
+					Logger.info("writeUntil readNum:{}",readNum);
 					return true;
 				}
 				int b = is.read();
@@ -139,9 +150,10 @@ public class Tool {
 					System.arraycopy(buffer,index,_buffer,0,buffer.length-index);
 					System.arraycopy(buffer,0,_buffer,buffer.length-index,index);
 					out.write(_buffer,0,buffer.length);
-					Logger.debug("write num:{} until endWith {}!",readNum,new String(_buffer));
+					Logger.warn("readNum:{} until endWith {}!",readNum,new String(_buffer));
 					return false;
 				}else{
+					readNum++;
 					out.write(buffer[index]);
 					buffer[index] = (byte)b;
 					index++;
@@ -160,7 +172,7 @@ public class Tool {
 	 * @return 字节数组
 	 * @throws IOException
 	 */
-	public static byte[] read(InputStream is,boolean close) throws IOException{
+	public static byte[] readAsBytes(InputStream is,boolean close) throws IOException{
 		int length = 0;
 		try {
 			length = is.available();
@@ -404,7 +416,7 @@ public class Tool {
                 }
             }
             zIn.close();
-            Logger.info("path:{}",dir.getPath());
+            Logger.info("temp dir:{}",dir.getPath());
             return dir.getPath();
         } catch (IOException e) {
         	Logger.warn("fail to read {}", resource);

@@ -23,6 +23,7 @@ public class ServletHandler implements Handler {
 				return true;
 			}
 		}
+		Logger.debug("ServletHandler 未找到合适Servlet处理请求:{} {}",req.getMethod(),req.getPath());
 		return false;
 	}
 }
