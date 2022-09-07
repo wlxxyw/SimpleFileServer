@@ -224,8 +224,8 @@ public class Tool {
 	}
 	/**
 	 * 包装输入流,处理堵塞的输入流 使用默认超时时间
-	 * @param is
-	 * @return
+	 * @param is 输入流
+	 * @return 包装输入流
 	 */
 	public static InputStream waitTimeout(final InputStream is){
 		return waitTimeout(is,TIME_OUT);
@@ -233,7 +233,7 @@ public class Tool {
 	public static InputStream waitTimeout(final InputStream is, final long timeout){
 		return new InputStream(){
 			@Override
-			public int read() throws IOException {
+			public int read() {
 				long start = System.currentTimeMillis();
 				try {
 					return waitAction(new Callable<Integer>() {
@@ -258,7 +258,7 @@ public class Tool {
 	}
 	public static InputStream limitInputStream(final InputStream is,final long limitSize){
 		return new InputStream(){
-			AtomicInteger readNum = new AtomicInteger(0);
+			final AtomicInteger readNum = new AtomicInteger(0);
 			@Override
 			public int read() throws IOException {
 				if(readNum.getAndIncrement()<limitSize){
@@ -276,7 +276,7 @@ public class Tool {
 	}
 	public static InputStream logInputStream(final InputStream is,final long bufferSize){
 		return new InputStream(){
-			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
 			@Override
 			public int read() throws IOException {
 				int data = is.read();
@@ -371,7 +371,6 @@ public class Tool {
         }
         return false;
     }
-	@SuppressWarnings("resource")
 	public static InputStream getResourceAsStream(String resource) {
         InputStream in = null;
         File resourceFile = new File(System.getProperty("user.dir")+File.separator+resource);
