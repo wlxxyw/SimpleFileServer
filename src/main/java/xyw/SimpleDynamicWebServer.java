@@ -6,6 +6,7 @@ import xyw.handler.NotFoundHandler;
 import xyw.handler.ServletHandler;
 import xyw.handler.servlet.*;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -66,10 +67,7 @@ public class SimpleDynamicWebServer {
                 WORK_POOL.execute(new Runnable() {
                     public void run() {
                         try {
-                            InputStream is = waitTimeoutInputStream(socket.getInputStream());
-                            if(Logger.debug){
-                                is = logInputStream(is,16*1024);
-                            }
+                            InputStream is = waitTimeoutInputStream(new BufferedInputStream(socket.getInputStream()), 1000L);
                         	Request request = new Request(is);
                         	if(request.skip()){
                                 Logger.info("skip request:{} {}",request.method,request.path);

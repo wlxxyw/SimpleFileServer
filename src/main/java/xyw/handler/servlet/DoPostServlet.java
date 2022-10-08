@@ -64,7 +64,6 @@ public class DoPostServlet extends Servlet{
 		private boolean over = false;
 
 		final byte[] boundary;
-		final byte[] startBoundary;
 		final byte[] stopBoundary;
 		public MultipartUploadRequest(Request request){
 			this.request = request;
@@ -72,12 +71,12 @@ public class DoPostServlet extends Servlet{
 			if ((null == contentType)|| (!contentType.toLowerCase().startsWith(MULTIPART))) {
 				throw new RuntimeException(format("the request doesn't contain a %s stream, content type header is %s", "multipart/form-data", contentType));
 			}
-			boundary = boundary(contentType);
-			if(null==boundary){
+			byte[] _boundary = boundary(contentType);
+			if(null== _boundary){
 				throw new RuntimeException("the request was rejected because no multipart boundary was found");
 			}
-			this.startBoundary = join(new byte[]{'-','-'},boundary,new byte[]{'\r','\n'});
-			this.stopBoundary = join(new byte[]{'\r','\n','-','-'},boundary,new byte[]{'-','-'});
+			boundary = join(new byte[]{'-','-'},_boundary);
+			this.stopBoundary = join(boundary,new byte[]{'-','-'});
 		}
 		private byte[] boundary(String contentType){
 			if(null==contentType)return null;
@@ -94,8 +93,7 @@ public class DoPostServlet extends Servlet{
 		public boolean hasNext() {
 			if(over)return false;
 			InputStream is = request.getBody();
-			final ByteArrayOutputStream baos = new ByteArrayOutputStream();
-			if(writeUntil(is, baos, startBoundary)){
+			if(linkUntilStartWith(is, new ByteArrayOutputStream(), join(boundary,new byte[]{'\r','\n'}))){
 				try{
 					Map<String,String> header = new HashMap<String, String>();
 					File tempFile = File.createTempFile("multipart",".dat");
@@ -122,7 +120,7 @@ public class DoPostServlet extends Servlet{
 						}
 					}
 					FileOutputStream fos = new FileOutputStream(tempFile);
-					boolean flag = writeUntil(is, fos, stopBoundary);
+					boolean flag = linkUntilStartWith(is, fos, stopBoundary);
 					fos.close();
 					this.currentItem = new FormFile(header,tempFile);
 					return flag;
@@ -158,7 +156,7 @@ public class DoPostServlet extends Servlet{
 		}
 		public boolean saveAs(File file){
 			try{
-				return tempFile.length() == Tool.link(new FileInputStream(tempFile),new FileOutputStream(file),true,true);
+				return tempFile.length() == link(new FileInputStream(tempFile),new FileOutputStream(file),true,true);
 			}catch (IOException e){return false;}
 		}
 	}

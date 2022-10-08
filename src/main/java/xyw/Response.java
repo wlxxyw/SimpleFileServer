@@ -57,10 +57,10 @@ public class Response {
 	ResponseCode code;
 	Map<String, String> headers;
 	InputStream body;
-	private boolean writed = false;
+	private boolean wrote = false;
 	public void write(OutputStream os) throws IOException{
-		if(writed)throw new RuntimeException("");//todo 错误 操作已做
-		writed = true;
+		if(wrote)throw new RuntimeException("Multiple Operation!");
+		wrote = true;
 		StringBuilder stringBuilder = new StringBuilder("HTTP/1.1 ");
 		stringBuilder.append(this.code.code).append(" ").append(this.code.msg).append("\r\n");
 		Map<String, String> _temp;
@@ -77,12 +77,6 @@ public class Response {
 		stringBuilder.append("\r\n");
 		os.write(stringBuilder.toString().getBytes(UTF8));
 		link(body, os, true, true);
-	}
-	public void joinBody(byte[] body) {
-		this.body = append(true, this.body,new ByteArrayInputStream(body));
-	}
-	public void joinBody(InputStream body) {
-		this.body = append(true, this.body,body);
 	}
 	public void setBody(byte[] body) {
 		this.body = new ByteArrayInputStream(body);
