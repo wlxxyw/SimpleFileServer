@@ -66,7 +66,7 @@ public class SimpleDynamicWebServer {
                 WORK_POOL.execute(new Runnable() {
                     public void run() {
                         try {
-                            InputStream is = waitTimeout(socket.getInputStream());
+                            InputStream is = waitTimeoutInputStream(socket.getInputStream());
                             if(Logger.debug){
                                 is = logInputStream(is,16*1024);
                             }

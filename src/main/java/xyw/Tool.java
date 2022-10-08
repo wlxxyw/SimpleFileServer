@@ -159,6 +159,9 @@ public class Tool {
 					index++;
 					if(index>=buffer.length)index=0;
 				}
+				if(readNum%1024==0){
+					Logger.debug("readNum:{}k!",readNum>>10);
+				}
 			}
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -227,10 +230,10 @@ public class Tool {
 	 * @param is 输入流
 	 * @return 包装输入流
 	 */
-	public static InputStream waitTimeout(final InputStream is){
-		return waitTimeout(is,TIME_OUT);
+	public static InputStream waitTimeoutInputStream(final InputStream is){
+		return waitTimeoutInputStream(is,TIME_OUT);
 	}
-	public static InputStream waitTimeout(final InputStream is, final long timeout){
+	public static InputStream waitTimeoutInputStream(final InputStream is, final long timeout){
 		return new InputStream(){
 			@Override
 			public int read() {
@@ -506,10 +509,10 @@ public class Tool {
 			}
 		}
 		if (shiftto == 6) {
-			dst[dp++] = (byte)(bits >> 16);
+			dst[dp] = (byte)(bits >> 16);
 		} else if (shiftto == 0) {
 			dst[dp++] = (byte)(bits >> 16);
-			dst[dp++] = (byte)(bits >>  8);
+			dst[dp] = (byte)(bits >>  8);
 		}
 		return dst;
 	}
@@ -555,16 +558,15 @@ public class Tool {
 		if(obj instanceof Map){
 			Map<?, ?> map = (Map<?, ?>)obj;
 			StringBuilder builder = new StringBuilder("{");
-			int index = 0;
 			for(Map.Entry<?, ?> entry:map.entrySet()){
-				if(index>0){builder.append(",");}
 				if(!(entry.getKey() instanceof String)){throw new RuntimeException("Map.Entry.getKey() must return String!");}
 				String key = "\""+((String)entry.getKey()).replaceAll("\\\\", "\\\\").replaceAll("\"", "\\\"")+"\"";
 				String value = toJson(entry.getValue(),thisPath+"."+entry.getKey(),cache);
-				builder.append(key).append(":").append(value);
-				index++;
+				builder.append(key).append(':').append(value);
+				builder.append(',');
 			}
-			builder.append("}");
+			builder.setCharAt(builder.length()-1,'}');
+			//builder.append("}");
 			return builder.toString();
 		}
 		if(obj instanceof Collection){
@@ -628,43 +630,6 @@ public class Tool {
 		}
 		return "";
 	}
-	private static String[] subSame(String...compares){
-		if(null==compares||compares.length<2){throw new UnsupportedOperationException("too little compares");}
-		int sameIndex = 0;
-		String minLength = null;
-		for(String compare:compares){
-			if(null==minLength||compare.length()<minLength.length()){
-				minLength=compare;
-			}
-		}
-		over:
-		for(int i=0;i<minLength.length();i++){
-			char c = minLength.charAt(i);
-			for(String compare:compares){
-				if(compare.equals(minLength)){
-					continue;
-				}
-				if(compare.charAt(i)!=c){
-					break over;
-				}
-			}
-			if(c=='.'||c=='['){
-				sameIndex = i;
-			}
-			if(c==']'||i==compares[0].length()-1){
-				sameIndex = i+1;
-			}
-		}
-		if(sameIndex==0){
-			return compares;
-		}else{
-			String[] result = new String[compares.length];
-			for(int i=0;i<compares.length;i++){
-				result[i] = compares[i].substring(sameIndex);
-			}
-			return result;
-		}
-	}
 	static class Value<T>{
 		Value(T v, String p){
 			this.value = v;
@@ -703,6 +668,47 @@ public class Tool {
 		public String toString() {
 			return "{\"$ref\":\""+ref+"\"}";
 		}
-
+		/**
+		 * @param compares String数组
+		 * @return 截取掉相同的开始部分(仅 '.','[',']'结尾)后余下内容
+		 */
+		private String[] subSame(String...compares){
+			if(null==compares||compares.length<2){throw new UnsupportedOperationException("too little compares");}
+			int sameIndex = 0;
+			/* 获取最短数组长度 */
+			String minLength = null;
+			for(String compare:compares){
+				if(null==minLength||compare.length()<minLength.length()){
+					minLength=compare;
+				}
+			}
+			over:
+			for(int i=0;i<minLength.length();i++){
+				char c = minLength.charAt(i);
+				for(String compare:compares){
+					if(compare.equals(minLength)){
+						continue;
+					}
+					if(compare.charAt(i)!=c){
+						break over;//跳出双循环
+					}
+				}
+				if(c=='.'||c=='['){//不包含
+					sameIndex = i;
+				}
+				if(c==']'||i==compares[0].length()-1){//包含
+					sameIndex = i+1;
+				}
+			}
+			if(sameIndex==0){
+				return compares;
+			}else{
+				String[] result = new String[compares.length];
+				for(int i=0;i<compares.length;i++){
+					result[i] = compares[i].substring(sameIndex);
+				}
+				return result;
+			}
+		}
 	}
 }
