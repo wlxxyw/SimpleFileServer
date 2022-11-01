@@ -1,19 +1,17 @@
 package xyw;
 
+
+
 import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class Tool {
 	public static Integer BUFFER_SIZE = 1024;
-	public static Integer POOL_SIZE = 2;
-	private static final ScheduledExecutorService pool = Executors.newScheduledThreadPool(POOL_SIZE);
-
 	/**
 	 * byte数组拼接
 	 * @param bss 多个byte数组
@@ -70,20 +68,6 @@ public class Tool {
 		}
 		return result.toArray(new byte[result.size()][]);
 	}
-	@Deprecated
-	public static int readBreakIsNextLine(InputStream is,byte[] bs){
-		try {
-			for (int i = 0; i < bs.length; i++) {
-				int value = is.read();
-				if(value==-1)return -1;
-				bs[i] = (byte)value;
-				if(bs[i]=='\n')return i;
-			}
-			return bs.length;
-		}catch (IOException e){
-			return -1;
-		}
-	}
 	/**
 	 * 读取流 直到遇到\r\n 或者 \n
 	 * @param is 输入流
@@ -100,7 +84,7 @@ public class Tool {
 		}
 		return os.toByteArray();
 	}
-	public static byte[] readLine(InputStream is,OutputStream os) throws IOException {
+	public static byte[] readLine(InputStream is, OutputStream os) throws IOException {
 		boolean next = false;
 		while(true){
 			int b = is.read();
@@ -119,30 +103,6 @@ public class Tool {
 			if(null!=os)os.write(b);
 		}
 	}
-	private static boolean equals(byte[] bs1,byte[] bs2){
-		for(int i=0;i<bs2.length;i++){
-			if(bs1[i]!=bs2[i])return false;
-		}
-		return true;
-	}
-	public static boolean linkUntilStartWith(InputStream is, OutputStream os, byte[] startWith){
-		byte[] check = new byte[startWith.length];
-		try{
-			byte[] lineEnds = new byte[0];
-			while(true){
-				os.write(lineEnds);
-				is.mark(check.length);
-				int num = is.read(check);
-				if(check.length != num)return false;
-				if(equals(startWith,check))return true;
-				is.reset();
-				lineEnds = readLine(is,os);
-			}
-		}catch (IOException e){
-			e.printStackTrace();
-			return false;
-		}
-	}
 	/**
 	 * 将in写入out直到遇到 stopbytes 停止写入或者in没有next
 	 * @param is 输入流
@@ -150,39 +110,30 @@ public class Tool {
 	 * @param stopbytes 终止字节数组
 	 * @return 匹配(true) 或者 输入流终止(false)
 	 */
-	@Deprecated
 	public static boolean writeUntil(InputStream is,OutputStream out,byte[] stopbytes){
-		byte[] buffer = new byte[stopbytes.length];
-		int index = 0;
-		try {
-			int readNum = is.read(buffer);
-			if(readNum < buffer.length){
-				if(readNum>0)out.write(buffer,0,readNum);
-				return false;
-			}
-			while(true){
-				if(equals(stopbytes, buffer,index)){
-					Logger.info("writeUntil readNum:{}",readNum);
-					return true;
-				}
-				int b = is.read();
-				if(b==-1){
-					byte[] _buffer = new byte[buffer.length];
-					System.arraycopy(buffer,index,_buffer,0,buffer.length-index);
-					System.arraycopy(buffer,0,_buffer,buffer.length-index,index);
-					out.write(_buffer,0,buffer.length);
-					Logger.warn("readNum:{} until endWith {}!",readNum,new String(_buffer));
+		try{
+			int data,i = 0,readNum = 0;
+			while (i<stopbytes.length) {
+				data = is.read();
+				readNum++;
+				if(-1 == data){
+					Logger.warn("writeUntil InputStream EOF! size:{}",readNum);
 					return false;
+				}
+				if(data == stopbytes[i]){
+					i++;
 				}else{
-					readNum++;
-					out.write(buffer[index]);
-					buffer[index] = (byte)b;
-					index++;
-					if(index>=buffer.length)index=0;
+					if(null!=out){
+						if(i!=0)out.write(stopbytes,0,i);
+						out.write(data);
+					}
+					i = 0;
 				}
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			Logger.debug("writeUntil found! size:{}",readNum);
+			return true;
+		}catch (Throwable t){
+			Logger.warn("writeUntil error! ");
 			return false;
 		}
 	}
@@ -191,7 +142,7 @@ public class Tool {
 	 * @param is 输入流
 	 * @param close 完成后是否关闭流
 	 * @return 字节数组
-	 * @throws IOException
+	 * @throws IOException IO异常
 	 */
 	public static byte[] readAsBytes(InputStream is,boolean close) throws IOException{
 		ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -211,7 +162,7 @@ public class Tool {
 	 * @param closeIs 完成后关闭输入流
 	 * @param closeOs 完成后关闭输出流
 	 * @return 内容长度
-	 * @throws IOException
+	 * @throws IOException IO异常
 	 */
 	public static long link(InputStream is,OutputStream os,boolean closeIs, boolean closeOs) throws IOException{
 		long length = 0;
@@ -227,10 +178,6 @@ public class Tool {
 		if(closeOs)os.close();
 		return length;
 	}
-	public static <T> T waitAction(final Callable<T> action,long timeout) throws ExecutionException, InterruptedException, TimeoutException {
-		Future<T> data = pool.submit(action);
-		return data.get(timeout,TimeUnit.MILLISECONDS);
-	}
 	/**
 	 * 包装输入流,处理堵塞的输入流 使用默认超时时间
 	 * @param is 输入流
@@ -238,21 +185,23 @@ public class Tool {
 	 */
 	public static InputStream waitTimeoutInputStream(final InputStream is, final long timeout){
 		return new InputStream(){
+			private final byte[] buffer = new byte[1024];
+			private int head,tail;
 			@Override
 			public int read() {
 				long start = System.currentTimeMillis();
 				try {
-					return waitAction(new Callable<Integer>() {
-						@Override
-						public Integer call() throws Exception {
-							return is.read();
-						}
-					},timeout);
-				}catch (TimeoutException e){
+					while(System.currentTimeMillis() < start+timeout && head==tail){
+						tail = is.read(buffer,0,Math.min(buffer.length,is.available()));
+						head = 0;
+					}
+					if(head<tail){
+						return buffer[head++];
+					}
 					Logger.warn("timeout:{}-{}",start,System.currentTimeMillis());
 					return -1;
 				} catch (Throwable e) {
-					e.printStackTrace();
+					Logger.warn("waitTimeoutInputStream error:{}",e.getMessage(),e);
 					return -1;
 				}
 			}
@@ -260,19 +209,48 @@ public class Tool {
 			public void close() throws IOException {
 				is.close();
 			}
-
-			@Override
-			public synchronized void mark(int limit) {is.mark(limit);}
-			@Override
-			public boolean markSupported(){return is.markSupported();}
-			@Override
-			public void reset() throws IOException {is.reset();}
 		};
 	}
+//	public static InputStream waitTimeoutInputStream(final InputStream is, final long timeout){
+//		return new InputStream(){
+//			private final ScheduledExecutorService pool = Executors.newSingleThreadScheduledExecutor();
+//			@Override
+//			public int read() {
+//				long start = System.currentTimeMillis();
+//				try {
+//					Future<Integer> data = pool.submit(new Callable<Integer>() {
+//						@Override
+//						public Integer call() throws Exception {
+//							return is.read();
+//						}
+//					});
+//					return data.get(timeout,TimeUnit.MILLISECONDS);
+//				}catch (TimeoutException e){
+//					Logger.warn("timeout:{}-{}",start,System.currentTimeMillis());
+//					return -1;
+//				} catch (Throwable e) {
+//					e.printStackTrace();
+//					return -1;
+//				}
+//			}
+//			@Override
+//			public void close() throws IOException {
+//				pool.shutdown();
+//				is.close();
+//			}
+//
+//			@Override
+//			public synchronized void mark(int limit) {is.mark(limit);}
+//			@Override
+//			public boolean markSupported(){return is.markSupported();}
+//			@Override
+//			public void reset() throws IOException {is.reset();}
+//		};
+//	}
 	public static InputStream limitInputStream(final InputStream is,final long limitSize){
 		return new InputStream(){
 			final AtomicInteger readNum = new AtomicInteger(0);
-			final AtomicInteger limitNum = new AtomicInteger(0);
+			int markNum = 0;
 			@Override
 			public int read() throws IOException {
 				if(readNum.getAndIncrement()<limitSize){
@@ -287,62 +265,27 @@ public class Tool {
 			}
 			public synchronized void mark(int limit) {
 				is.mark(limit);
-				limitNum.set(readNum.get());
+				markNum = readNum.get();
 			}
 			@Override
 			public boolean markSupported(){return is.markSupported();}
 			@Override
 			public void reset() throws IOException {
 				is.reset();
-				readNum.set(limitNum.get());
+				readNum.set(markNum);
 			}
 		};
 	}
-	/**
-	 * 连接输入流,当一个输入流结束后再读取下一个输入流
-	 * @param iss 将输入流串起来, 读完一个接着读另一个
-	 * @return 包装输入流
-	 */
-	@Deprecated
-	public static InputStream append(final boolean autoClose,final InputStream...iss){
-		return new InputStream(){
-			private final InputStream[] is = iss;
-			private int index = 0;
-			@Override
-			public int read() throws IOException {
-				int data = -1;
-				try{
-					data = is[index].read();
-					if(data==-1){
-						if(autoClose)is[index].close();
-						index += 1;
-						if(index<is.length){return read();}
-					}
-				}catch(IOException e){
-					e.printStackTrace();
-					throw e;
-				}catch (Throwable e) {
-					e.printStackTrace();
-					index += 1;
-					if(index<is.length){return read();}
-				}
-				return data;
-			}
-			@Override
-			public boolean markSupported(){return false;}
-		};
-	}
-	@SuppressWarnings("unchecked")
 	public static boolean isEmpty(Object obj){
 		if(null==obj){return true;}
         boolean checked = false;
         if(obj instanceof Collection){
             checked = true;
-            if(!isEmpty((Collection<Object>) obj))return false;
+            if(!isEmpty((Collection<?>) obj))return false;
         }
         if(obj instanceof Map){
             checked = true;
-            if(!isEmpty((Map<Object,Object>) obj))return false;
+            if(!isEmpty((Map<?,?>) obj))return false;
         }
         if(obj.getClass().isArray()){
             checked = true;
@@ -353,9 +296,9 @@ public class Tool {
             if(!((String)obj).isEmpty())return false;
         }
         if(!checked){
-            throw new RuntimeException("UNSUPPORTE DATA TYPE,Collection/Map/Array or String");
+            throw new RuntimeException("UNSUPPORTED DATA TYPE,Collection/Map/Array or String");
         }
-        return checked;
+        return true;
 	}
 	private static boolean isEmpty(Collection<?> list){
 		for(Object obj:list){
@@ -429,39 +372,13 @@ public class Tool {
     }
 	static void delete(File file) {
         if (file.isDirectory())
-            for (File subFile : file.listFiles())
+            for (File subFile : defaultOfNull(file.listFiles(),new File[0]))
                 delete(subFile);
         if (file.exists())
             file.delete();
     }
-
-	/**
-	 * 数组错位比较 eg: [1,2,3,4] [4,1,2,3] 错位 1 相等
-	 * @param bs1 数组1
-	 * @param bs2 数组2
-	 * @param index 错位
-	 * @return 是否相等
-	 */
-	public static boolean equals(byte[] bs1,byte[] bs2,int index){
-		if((null==bs1)^(null==bs2)){
-			return false;
-		}else if(bs1==null){
-			return true;
-		}
-		if(bs1.length!=bs2.length){
-			return false;
-		}
-		if(index>bs1.length||index<bs1.length*-1){
-			throw new IndexOutOfBoundsException();
-		}
-		if(index < 0){
-			index += bs1.length;
-		}
-		for(int i=0;i<bs1.length;i++){
-			int _i = (i+index>=bs1.length)?(i+index-bs1.length):(i+index);
-			if(bs1[i]!=bs2[_i])return false;
-		}
-		return true;
+	static <T> T defaultOfNull(T obj,T t){
+		return null==obj?t:obj;
 	}
 
 	private static final char[] toBase64 = {
@@ -711,5 +628,41 @@ public class Tool {
 				return result;
 			}
 		}
+	}
+	public static InputStream logInputStream(final InputStream is,final long bufferSize) {
+		return new InputStream() {
+			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+			@Override
+			public int read() throws IOException {
+				int data = is.read();
+				if (-1 != data) {
+					if (buffer.size() >= bufferSize) log();
+					buffer.write(data);
+				}else{
+					log();
+				}
+				return data;
+			}
+			private synchronized void log(){
+				Logger.debug("logInputStream >> \n{}", buffer.toString());
+				buffer.reset();
+			}
+			public boolean markSupported() {
+				return is.markSupported();
+			}
+			public synchronized void mark(int readlimit) {
+				is.mark(readlimit);
+			}
+			public synchronized void reset() throws IOException {
+				is.reset();
+			}
+
+			@Override
+			public void close() throws IOException {
+				is.close();
+				log();
+			}
+		};
 	}
 }

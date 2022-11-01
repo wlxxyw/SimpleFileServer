@@ -67,7 +67,7 @@ public class SimpleDynamicWebServer {
                 WORK_POOL.execute(new Runnable() {
                     public void run() {
                         try {
-                            InputStream is = waitTimeoutInputStream(new BufferedInputStream(socket.getInputStream()), 1000L);
+                            InputStream is = waitTimeoutInputStream(socket.getInputStream(), 1000L);
                         	Request request = new Request(is);
                         	if(request.skip()){
                                 Logger.info("skip request:{} {}",request.method,request.path);

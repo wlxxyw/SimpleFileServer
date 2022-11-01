@@ -1,18 +1,20 @@
 package xyw.handler.servlet;
 
-import static java.lang.String.format;
-import static xyw.Constant.*;
-import static xyw.Tool.*;
-
-import java.io.*;
-import java.util.*;
-
 import lombok.Getter;
 import xyw.Logger;
 import xyw.Request;
 import xyw.Response;
 import xyw.Response.ResponseCode;
-import xyw.Tool;
+
+import java.io.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+
+import static java.lang.String.format;
+import static xyw.Constant.METHOD_POST;
+import static xyw.Constant.UTF8;
+import static xyw.Tool.*;
 
 
 public class DoPostServlet extends Servlet{
@@ -72,7 +74,7 @@ public class DoPostServlet extends Servlet{
 				throw new RuntimeException(format("the request doesn't contain a %s stream, content type header is %s", "multipart/form-data", contentType));
 			}
 			byte[] _boundary = boundary(contentType);
-			if(null== _boundary){
+			if(null==_boundary){
 				throw new RuntimeException("the request was rejected because no multipart boundary was found");
 			}
 			boundary = join(new byte[]{'-','-'},_boundary);
@@ -93,7 +95,7 @@ public class DoPostServlet extends Servlet{
 		public boolean hasNext() {
 			if(over)return false;
 			InputStream is = request.getBody();
-			if(linkUntilStartWith(is, new ByteArrayOutputStream(), join(boundary,new byte[]{'\r','\n'}))){
+			if(writeUntil(is, null, join(boundary,new byte[]{'\r','\n'}))){
 				try{
 					Map<String,String> header = new HashMap<String, String>();
 					File tempFile = File.createTempFile("multipart",".dat");
@@ -120,7 +122,7 @@ public class DoPostServlet extends Servlet{
 						}
 					}
 					FileOutputStream fos = new FileOutputStream(tempFile);
-					boolean flag = linkUntilStartWith(is, fos, stopBoundary);
+					boolean flag = writeUntil(is, fos, stopBoundary);
 					fos.close();
 					this.currentItem = new FormFile(header,tempFile);
 					return flag;
