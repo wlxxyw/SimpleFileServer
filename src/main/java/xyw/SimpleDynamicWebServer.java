@@ -6,7 +6,6 @@ import xyw.handler.NotFoundHandler;
 import xyw.handler.ServletHandler;
 import xyw.handler.servlet.*;
 
-import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.ServerSocket;
@@ -79,19 +78,17 @@ public class SimpleDynamicWebServer {
                         		try{
                         			if(handler.handler(request, response)){break;}
                         		}catch(Throwable t){
-                        			t.printStackTrace();
+                                    Logger.warn("handler.handler发生错误:{}",t.getMessage(),t);
                         		}
                         	}
                             response.write(socket.getOutputStream());
                             is.close();
                             socket.close();
                         } catch (IOException e) {
-                            e.printStackTrace();
+                            Logger.warn("发生IO错误:{}",e.getMessage(),e);
                             try {
                                 socket.close();
-                            } catch (IOException ex) {
-                                ex.printStackTrace();
-                            }
+                            } catch (IOException ignored) {}
                         }
                     }
                 });

@@ -185,7 +185,7 @@ public class Tool {
 	 */
 	public static InputStream waitTimeoutInputStream(final InputStream is, final long timeout){
 		return new InputStream(){
-			private final byte[] buffer = new byte[1024];
+			private final byte[] buffer = new byte[65525];
 			private int head,tail;
 			@Override
 			public int read() {
@@ -273,6 +273,36 @@ public class Tool {
 			public void reset() throws IOException {
 				is.reset();
 				readNum.set(markNum);
+			}
+		};
+	}
+	public static InputStream subInputStream(final InputStream is,final long start,final long end){
+		return new InputStream() {
+			long index = 0;
+			@Override
+			public int read() throws IOException {
+				if(index<start){
+					is.skip(start-index);
+					index = start;
+				}
+				if(index<=end){
+					index++;
+					return is.read();
+				}
+				return -1;
+			}
+			@Override
+			public void close() throws IOException {
+				is.close();
+			}
+			public synchronized void mark(int limit) {
+				is.mark(limit);
+			}
+			@Override
+			public boolean markSupported(){return is.markSupported();}
+			@Override
+			public void reset() throws IOException {
+				is.reset();
 			}
 		};
 	}

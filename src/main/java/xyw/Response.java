@@ -31,7 +31,8 @@ public class Response {
 	}
 	public enum ResponseCode{
 		OK(200,"OK"),
-		MOVED_PERMAENTLY(301,"MOVED_PERMAENTLY"),
+		PARTIAL_CONTENT(206,"Partial Content"),
+		MOVED_PERMANENTLY(301,"MOVED_PERMANENTLY"),
 		Found(302,"Found"),
 		SEE_OTHER(303,"SEE_OTHER"),
 		NOT_MODIFIED(304,"Not Modified"),
@@ -89,5 +90,8 @@ public class Response {
 	}
 	public void setBody(InputStream body) {
 		this.body = body;
+	}
+	public void setHeader(String k,String v){
+		this.headers.put(k,v);
 	}
 }
