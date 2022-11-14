@@ -82,7 +82,7 @@ public class Response {
 	public void setBody(byte[] body) {
 		this.body = new ByteArrayInputStream(body);
 	}
-	public void setBody(Map<?, ?> data) {
+	public void setBody(Object data) {
 		setBody(Tool.toJson(data));
 	}
 	public void setBody(String msg) {

@@ -61,7 +61,7 @@ public class DoGetServlet extends Servlet{
 						Logger.info("获取文件列表:{}", f.getAbsolutePath());
 						res.setCode(ResponseCode.OK);
 						res.getHeaders().put("Content-Type", DEFAULT_JSON);
-						res.setBody(toJson(fileList(f.listFiles())).getBytes(UTF8));
+						res.setBody(fileList(f.listFiles()));
 						return true;
 					}
 				}

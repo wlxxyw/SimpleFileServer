@@ -112,6 +112,7 @@ public class Tool {
 	 */
 	public static boolean writeUntil(InputStream is,OutputStream out,byte[] stopbytes){
 		try{
+			long start = System.currentTimeMillis();
 			int data,i = 0,readNum = 0;
 			while (i<stopbytes.length) {
 				data = is.read();
@@ -130,7 +131,7 @@ public class Tool {
 					i = 0;
 				}
 			}
-			Logger.debug("writeUntil found! size:{}",readNum);
+			Logger.debug("writeUntil found! size:{} time:{}ms",readNum,System.currentTimeMillis()-start);
 			return true;
 		}catch (Throwable t){
 			Logger.warn("writeUntil error! ");
@@ -249,11 +250,12 @@ public class Tool {
 //	}
 	public static InputStream limitInputStream(final InputStream is,final long limitSize){
 		return new InputStream(){
-			final AtomicInteger readNum = new AtomicInteger(0);
-			int markNum = 0;
+			long index;
+			long markIndex;
 			@Override
 			public int read() throws IOException {
-				if(readNum.getAndIncrement()<limitSize){
+				if(index<limitSize){
+					index++;
 					return is.read();
 				}
 				Logger.warn("limitInputStream over read!");
@@ -264,21 +266,22 @@ public class Tool {
 				is.close();
 			}
 			public synchronized void mark(int limit) {
+				markIndex = index;
 				is.mark(limit);
-				markNum = readNum.get();
 			}
 			@Override
 			public boolean markSupported(){return is.markSupported();}
 			@Override
 			public void reset() throws IOException {
+				index = markIndex;
 				is.reset();
-				readNum.set(markNum);
 			}
 		};
 	}
 	public static InputStream subInputStream(final InputStream is,final long start,final long end){
 		return new InputStream() {
 			long index = 0;
+			long markIndex;
 			@Override
 			public int read() throws IOException {
 				if(index<start){
@@ -296,12 +299,14 @@ public class Tool {
 				is.close();
 			}
 			public synchronized void mark(int limit) {
+				markIndex = index;
 				is.mark(limit);
 			}
 			@Override
 			public boolean markSupported(){return is.markSupported();}
 			@Override
 			public void reset() throws IOException {
+				index = markIndex;
 				is.reset();
 			}
 		};
