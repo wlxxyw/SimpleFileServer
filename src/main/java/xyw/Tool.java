@@ -377,7 +377,7 @@ public class Tool {
             Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
                 @Override
                 public void run() {
-                    Logger.debug("delete temp dir({})...",dir.getAbsolutePath());
+                    Logger.info("delete temp dir({})...",dir.getAbsolutePath());
                     delete(dir);
                 }
             }));

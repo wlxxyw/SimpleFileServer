@@ -7,13 +7,10 @@ import xyw.Response;
 import xyw.Response.ResponseCode;
 
 import java.io.*;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.*;
 
 import static java.lang.String.format;
-import static xyw.Constant.METHOD_POST;
-import static xyw.Constant.UTF8;
+import static xyw.Constant.*;
 import static xyw.Tool.*;
 
 
@@ -34,26 +31,37 @@ public class DoPostServlet extends Servlet{
 				File dir = new File(baseFile, path.substring(config.context.length()));
 				try{
 					MultipartUploadRequest request = new MultipartUploadRequest(req);
+					List<File> successFile = new ArrayList<File>();
+					List<String> existsFile = new ArrayList<String>();
+					List<String> failFile = new ArrayList<String>();
 					while (request.hasNext()) {
 						FormFile file = request.next();
 						File saveTo = new File(dir,file.getFileName());
 						if(saveTo.exists()){
-							quickFinish(res,ResponseCode.ERROR,"文件已存在!");
-							Logger.warn("文件已存在!");
-							return true;
+							Logger.warn("文件已存在:{}",file.getFileName());
+							existsFile.add(file.getFileName());
+							continue;
 						}else if(!file.saveAs(saveTo)){
-							quickFinish(res,ResponseCode.ERROR,"文件转存失败!");
-							Logger.warn("文件转存失败!");
-							return true;
+							Logger.warn("文件转存失败{}->{}",file.getFileName(),saveTo.getAbsolutePath());
+							failFile.add(file.getFileName());
+							continue;
 						}
+						successFile.add(saveTo);
 					}
-					quickFinish(res,ResponseCode.OK,"上传成功!");
+					ResponseCode status = (successFile.isEmpty()||!existsFile.isEmpty()||!failFile.isEmpty())?ResponseCode.ERROR:ResponseCode.OK;
+					Map<String,Object> result = new HashMap<String, Object>();
+					result.put("successFile",successFile);
+					result.put("existsFile",existsFile);
+					result.put("failFile",failFile);
+					res.setCode(status);
+					res.getHeaders().put("Content-Type", DEFAULT_JSON);
+					res.setBody(result);
+					return true;
 				}catch (Throwable t){
 					t.printStackTrace();
-					Logger.warn(t.getLocalizedMessage(),t);
-					quickFinish(res, ResponseCode.ERROR,t.getLocalizedMessage());
+					Logger.error(t.getLocalizedMessage(),t);
+					return quickFinish(res, ResponseCode.ERROR,t.getLocalizedMessage());
 				}
-				return config.defaultReturn;
 			}
 		}
 		return false;
@@ -127,7 +135,7 @@ public class DoPostServlet extends Servlet{
 					this.currentItem = new FormFile(header,tempFile);
 					return flag;
 				}catch (IOException e){
-					Logger.warn("error {}",e.getLocalizedMessage(),e);
+					Logger.error("error {}",e.getLocalizedMessage(),e);
 					over = true;
 					return false;
 				}

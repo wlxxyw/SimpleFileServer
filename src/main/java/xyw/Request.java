@@ -32,7 +32,7 @@ public class Request {
 		String line = new String(firstLine,UTF8);
 		String[] strs = line.split("\\s+");
 		if(strs.length!=3){
-			Logger.info("无法分析的请求: {}", line);
+			Logger.warn("无法分析的请求: {}", line);
 			this.skip = true;
 			return;
 		}

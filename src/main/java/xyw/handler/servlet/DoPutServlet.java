@@ -22,27 +22,28 @@ public class DoPutServlet extends Servlet{
 				try {
 					dir = new String(Tool.readAsBytes(req.getBody(), false), UTF8);
 				} catch (IOException e) {
-					quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());
 					e.printStackTrace();
-					return true;
+					return quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());
 				}
 				Logger.info("新建文件夹请求:{}", dir);
 				File f = new File(baseFile, path.substring(config.context.length()));
 				f = new File(f,dir);
 				if (f.exists()) {
-					quickFinish(res, ResponseCode.ERROR, "文件路径已存在!");
+					Logger.warn("文件路径已存在:{}", dir);
+					return quickFinish(res, ResponseCode.ERROR, "文件路径已存在!");
 				} else {
 					try {
 						if (f.mkdirs()) {
-							quickFinish(res, ResponseCode.OK, "文件路径创建成功!");
+							return quickFinish(res, ResponseCode.OK, "文件路径创建成功!");
 						} else {
-							quickFinish(res, ResponseCode.ERROR, "文件路径创建失败!");
+							Logger.error("文件路径创建失败:{}", dir);
+							return quickFinish(res, ResponseCode.ERROR, "文件路径创建失败!");
 						}
 					} catch (Throwable t) {
-						quickFinish(res, ResponseCode.ERROR, t.getLocalizedMessage());
+						Logger.error("文件路径创建出错:{}", dir,t);
+						return quickFinish(res, ResponseCode.ERROR, t.getLocalizedMessage());
 					}
 				}
-				return config.defaultReturn;
 			}
 		}
 		return false;

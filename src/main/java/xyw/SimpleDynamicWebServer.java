@@ -44,7 +44,7 @@ public class SimpleDynamicWebServer {
                 throw new RuntimeException(e.getLocalizedMessage());
             }
         }else{
-        	throw new RuntimeException("Unsupport multiple server!");
+        	throw new RuntimeException("Unsupported multiple server!");
         }
     }
     public SimpleDynamicWebServer(int port, List<Handler> handlers){
@@ -78,14 +78,14 @@ public class SimpleDynamicWebServer {
                         		try{
                         			if(handler.handler(request, response)){break;}
                         		}catch(Throwable t){
-                                    Logger.warn("handler.handler发生错误:{}",t.getMessage(),t);
+                                    Logger.error("handler.handler发生错误:{}",t.getMessage(),t);
                         		}
                         	}
                             response.write(socket.getOutputStream());
                             is.close();
                             socket.close();
                         } catch (IOException e) {
-                            Logger.warn("发生IO错误:{}",e.getMessage(),e);
+                            Logger.error("发生IO错误:{}",e.getMessage(),e);
                             try {
                                 socket.close();
                             } catch (IOException ignored) {}
@@ -99,6 +99,7 @@ public class SimpleDynamicWebServer {
     }
         
     public static void main(String[] args) {
+        //System.setProperty("DEV","true");
     	System.out.println("java -jar this.jar [port [workpath [context [username password]]]] \ndefault port: 8088\ndefault workpath: ./\ndefault context: /\ndefault no username&password");
     	List<Handler> handlers = new ArrayList<Handler>();
         int port = DEFAULT_PORT;
@@ -108,7 +109,7 @@ public class SimpleDynamicWebServer {
             try {
                 port = Integer.parseInt(args[0]);
             } catch (NumberFormatException ignored) {
-                Logger.warn("命令行参数解析失败!");
+                Logger.error("命令行参数解析失败!");
                 return;
             }
         }

@@ -16,10 +16,10 @@ import java.util.regex.Pattern;
 public class Logger {
 	@AllArgsConstructor@Getter
 	enum LoggerLevel{
-		DEBUG(30,"\033[1;32m[DEBUG]\033[0m ","D "),
-		INFO(20,"[INFO] ","I "),
-		WARN(10,"\033[1;33m[WARN]\033[0m ","W"),
-		ERROR(0,"\033[1;31m[DEBUG]\033[0m ","E");
+		DEBUG(30,"\033[1;32m[DEBUG]\033[0m ","[DEBUG]"),
+		INFO(20,"[INFO] ","[INFO]"),
+		WARN(10,"\033[1;33m[WARN]\033[0m ","[WARN]"),
+		ERROR(0,"\033[1;31m[DEBUG]\033[0m ","[DEBUG]");
 		public final int level;
 		public final String ansiText;
 		public final String text;
@@ -101,7 +101,7 @@ public class Logger {
 			@Override
 			public PrintStream get() {
 				try{
-					return new PrintStream(new FileOutputStream(new File(System.getProperty("user.dir"),String.format("Logger-%tF.log",new Date()))));
+					return new PrintStream(new FileOutputStream(new File(System.getProperty("user.dir"),String.format("Logger-%tF.log",new Date())),true));
 				}catch (Throwable t){
 					t.printStackTrace();
 					return System.out;

@@ -17,12 +17,6 @@ public abstract class Servlet{
 		this.baseFile = new File(config.workPath.endsWith(File.separator)?config.workPath:(config.workPath+File.separator));
 	}
 	public abstract boolean doServlet(Request req, Response res);
-	protected boolean quickFinish(Response res,ResponseCode code){
-		res.setCode(code);
-		res.getHeaders().put("Content-Type", DEFAULT_HTML);
-		res.setBody(new byte[0]);
-		return true;
-	}
 	protected boolean quickFinish(Response res,ResponseCode code,String msg){
 		res.setCode(code);
 		res.getHeaders().put("Content-Type", DEFAULT_HTML);

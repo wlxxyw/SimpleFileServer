@@ -27,15 +27,18 @@ public class DoDeleteServlet extends Servlet{
 				Logger.info("删除文件请求:{}", dir);
 				File f = new File(baseFile, dir);
 				if (!f.exists()) {
+					Logger.warn("删除文件请求,文件路径不存在:{}", dir);
 					return quickFinish(res, ResponseCode.ERROR, "文件路径不存在!");
 				} else {
 					try {
 						if (f.delete()) {
 							return quickFinish(res, ResponseCode.OK, "文件删除成功!");
 						} else {
+							Logger.error("删除文件删除失败:{}", dir);
 							return quickFinish(res, ResponseCode.ERROR, "文件删除失败!");
 						}
 					} catch (Throwable t) {
+						Logger.error("删除文件删除出错:{}", dir);
 						return quickFinish(res, ResponseCode.ERROR, t.getLocalizedMessage());
 					}
 				}
