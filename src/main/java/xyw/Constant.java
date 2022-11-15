@@ -2,11 +2,8 @@ package xyw;
 
 import java.io.*;
 import java.nio.charset.Charset;
-import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Random;
-import java.util.zip.ZipInputStream;
 
 public class Constant {
 	public final static String METHOD_GET = "GET";

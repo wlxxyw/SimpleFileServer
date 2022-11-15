@@ -1,17 +1,15 @@
 package xyw;
 
 
-
 import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 public class Tool {
-	public static Integer BUFFER_SIZE = 1024;
+	public static final Integer BUFFER_SIZE = 1024;
 	/**
 	 * byte数组拼接
 	 * @param bss 多个byte数组
@@ -121,11 +119,11 @@ public class Tool {
 					Logger.warn("writeUntil InputStream EOF! size:{}",readNum);
 					return false;
 				}
-				if(data == stopbytes[i]){
+				if(data == stopbytes[i]){//当遇到相等时不进行自增外其他操作 直至全部相同(匹配上)跳出循环
 					i++;
-				}else{
+				}else{//或者存在不匹配数据
 					if(null!=out){
-						if(i!=0)out.write(stopbytes,0,i);
+						if(i!=0)out.write(stopbytes,0,i);//将前几次未写入的数据写入
 						out.write(data);
 					}
 					i = 0;
@@ -212,6 +210,7 @@ public class Tool {
 			}
 		};
 	}
+// 效率过低 弃用
 //	public static InputStream waitTimeoutInputStream(final InputStream is, final long timeout){
 //		return new InputStream(){
 //			private final ScheduledExecutorService pool = Executors.newSingleThreadScheduledExecutor();
@@ -248,6 +247,10 @@ public class Tool {
 //			public void reset() throws IOException {is.reset();}
 //		};
 //	}
+
+	/**
+	 * 包装流 限制读取长度
+	 */
 	public static InputStream limitInputStream(final InputStream is,final long limitSize){
 		return new InputStream(){
 			long index;
@@ -278,6 +281,10 @@ public class Tool {
 			}
 		};
 	}
+
+	/**
+	 * 包装流 截取范围
+	 */
 	public static InputStream subInputStream(final InputStream is,final long start,final long end){
 		return new InputStream() {
 			long index = 0;
@@ -285,7 +292,10 @@ public class Tool {
 			@Override
 			public int read() throws IOException {
 				if(index<start){
-					is.skip(start-index);
+					if(start-index !=is.skip(start-index)){
+						Logger.error("subInputStream skip 返回了非期望值");
+						throw new IOException("subInputStream skip 返回了非期望值");
+					}
 					index = start;
 				}
 				if(index<=end){
@@ -311,6 +321,17 @@ public class Tool {
 			}
 		};
 	}
+
+	/**
+	 * 仅包含 '空'值的Map视为空
+	 * 仅包含 '空'元素的集合/数组视为空
+	 * {"a":null} -> true
+	 * {null: "a"} -> false
+	 * [null,null] -> true
+	 * [{},{}] -> true
+	 * {"a": []} -> true
+	 * {"a": [{}]} -> true
+	 */
 	public static boolean isEmpty(Object obj){
 		if(null==obj){return true;}
         boolean checked = false;
@@ -336,23 +357,30 @@ public class Tool {
         return true;
 	}
 	private static boolean isEmpty(Collection<?> list){
+		if(null==list||list.isEmpty())return true;
 		for(Object obj:list){
             if(!isEmpty(obj))return false;
         }
-        return false;
+        return true;
 	}
 	private static boolean isEmpty(Map<?,?> map){
+		if(null==map||map.isEmpty())return true;
 		for(Object obj:map.values()){
             if(!isEmpty(obj))return false;
         }
         return true;
 	}
 	private static boolean isEmpty(Object[] array){
+		if(null==array||0==array.length)return true;
         for(Object obj:array){
             if(!isEmpty(obj))return false;
         }
-        return false;
+        return true;
     }
+
+	/**
+	 * 多方式获取输入流
+	 */
 	public static InputStream getResourceAsStream(String resource) {
         InputStream in = null;
         File resourceFile = new File(System.getProperty("user.dir")+File.separator+resource);
@@ -368,6 +396,10 @@ public class Tool {
             in = Tool.class.getClassLoader().getResourceAsStream(resource);
         return in;
     }
+
+	/**
+	 * 解压文件到临时文件夹 返回临时文件夹路径
+	 */
 	public static String tempFile(String resource) {
         try {
             InputStream in = getResourceAsStream(resource);
@@ -412,7 +444,7 @@ public class Tool {
         if (file.exists())
             file.delete();
     }
-	static <T> T defaultOfNull(T obj,T t){
+	public static <T> T defaultOfNull(T obj,T t){
 		return null==obj?t:obj;
 	}
 
@@ -443,6 +475,10 @@ public class Tool {
 			paddings = 4 - (len & 0x3);
 		return 3 * ((len + 3) / 4) - paddings;
 	}
+
+	/**
+	 * 仅实现Base64解码 未实现Base编码
+	 */
 	public static byte[] decode(byte[] base64Data) {
 		byte[] dst = new byte[outLength(base64Data)];
 		int dp = 0;
@@ -469,6 +505,10 @@ public class Tool {
 		}
 		return dst;
 	}
+
+	/**
+	 * 仅实现 对象转JSON 未实现JSON转对象
+	 */
 	public static String toJson(Object obj){
 		/*
 		 * 避免对象间循环嵌套导致堆栈溢出
@@ -583,6 +623,11 @@ public class Tool {
 		}
 		return "";
 	}
+
+	/**
+	 * 数据结构 包装数据及它的引用路径
+	 * @param <T>
+	 */
 	static class Value<T>{
 		Value(T v, String p){
 			this.value = v;
@@ -591,6 +636,10 @@ public class Tool {
 		T value;
 		String path;
 	}
+
+	/**
+	 * 为 toJson服务 JSON内的引用
+	 */
 	static class Ref{
 		Ref(String thisPath,String ref){
 			if(thisPath.length()==0){
@@ -664,6 +713,13 @@ public class Tool {
 			}
 		}
 	}
+
+	/**
+	 * 包装流 读取满buffer/close时 打印读取内容
+	 * @param is 原输入流
+	 * @param bufferSize 缓存大小
+	 * @return 包装流
+	 */
 	public static InputStream logInputStream(final InputStream is,final long bufferSize) {
 		return new InputStream() {
 			final ByteArrayOutputStream buffer = new ByteArrayOutputStream();

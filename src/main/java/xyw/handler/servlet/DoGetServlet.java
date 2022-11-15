@@ -17,7 +17,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static xyw.Constant.*;
-import static xyw.Tool.toJson;
 
 public class DoGetServlet extends Servlet{
 	public DoGetServlet(ServletConfig config){

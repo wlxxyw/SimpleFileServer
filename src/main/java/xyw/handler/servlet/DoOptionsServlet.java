@@ -4,17 +4,11 @@ import xyw.Logger;
 import xyw.Request;
 import xyw.Response;
 import xyw.Response.ResponseCode;
+import xyw.Tool;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
-import static xyw.Constant.*;
-import static xyw.Tool.toJson;
+import static xyw.Constant.METHOD_OPTIONS;
 
 public class DoOptionsServlet extends Servlet{
 	public DoOptionsServlet(ServletConfig config){
@@ -31,7 +25,7 @@ public class DoOptionsServlet extends Servlet{
 				if (f.isFile()) {
 					res.getHeaders().put("Allow", "GET,DELETE");
 				}else if(f.isDirectory()){
-					if(f.list().length==0){
+					if(Tool.defaultOfNull(f.list(),new String[0]).length==0){
 						res.getHeaders().put("Allow", "GET,POST,PUT,DELETE");
 					}else{
 						res.getHeaders().put("Allow", "GET,POST,PUT");

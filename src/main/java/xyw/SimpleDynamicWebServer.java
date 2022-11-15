@@ -33,7 +33,7 @@ public class SimpleDynamicWebServer {
     static ServerSocket server;
     boolean run = false;
     final List<Handler> handlers = new ArrayList<Handler>();
-    int port;
+    final int port;
     private synchronized void init(){
     	if (server == null) {
             try {

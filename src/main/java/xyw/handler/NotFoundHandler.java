@@ -3,10 +3,6 @@ package xyw.handler;
 import xyw.Logger;
 import xyw.Request;
 import xyw.Response;
-import xyw.handler.servlet.Servlet;
-
-import java.util.Arrays;
-import java.util.List;
 
 public class NotFoundHandler implements Handler {
 	public NotFoundHandler(){
