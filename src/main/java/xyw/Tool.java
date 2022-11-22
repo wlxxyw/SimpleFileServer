@@ -195,7 +195,7 @@ public class Tool {
 						head = 0;
 					}
 					if(head<tail){
-						return buffer[head++];
+						return buffer[head++]<0?(buffer[head-1]+256):buffer[head-1];
 					}
 					Logger.warn("timeout:{}-{}",start,System.currentTimeMillis());
 					return -1;
