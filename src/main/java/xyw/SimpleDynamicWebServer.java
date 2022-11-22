@@ -125,7 +125,7 @@ public class SimpleDynamicWebServer {
         	handlers.add(new AuthHandler(args[3], args[4],"[/]{0,1}favicon\\.ico"));
         }
         Logger.info("Port:{}, ShareDir:{}",port,workPath);
-        ServletConfig resourceConfig = new ServletConfig(Boolean.getBoolean("DEV")?(Thread.currentThread().getContextClassLoader().getResource(".").getPath()+"resources"):TEMPLATE_DIR,"/",false,true,false);
+        ServletConfig resourceConfig = new ServletConfig(Boolean.getBoolean("DEV")?(Thread.currentThread().getContextClassLoader().getResource(".").getPath()+"resource"):TEMPLATE_DIR,"/",false,true,false);
         ServletConfig defaultConfig = new ServletConfig(workPath,context,true,true,true);
         handlers.add(
                 new ServletHandler(

@@ -31,7 +31,7 @@ public class DoPostServlet extends Servlet{
 				File dir = new File(baseFile, path.substring(config.context.length()));
 				try{
 					MultipartUploadRequest request = new MultipartUploadRequest(req);
-					List<File> successFile = new ArrayList<File>();
+					List<String> successFile = new ArrayList<String>();
 					List<String> existsFile = new ArrayList<String>();
 					List<String> failFile = new ArrayList<String>();
 					while (request.hasNext()) {
@@ -46,7 +46,7 @@ public class DoPostServlet extends Servlet{
 							failFile.add(file.getFileName());
 							continue;
 						}
-						successFile.add(saveTo);
+						successFile.add(saveTo.getName());
 					}
 					ResponseCode status = (successFile.isEmpty()||!existsFile.isEmpty()||!failFile.isEmpty())?ResponseCode.ERROR:ResponseCode.OK;
 					Map<String,Object> result = new HashMap<String, Object>();
