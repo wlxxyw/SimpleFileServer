@@ -60,6 +60,7 @@ public class SimpleDynamicWebServer {
             return;
         }
         run = true;
+        final boolean devMode = Boolean.getBoolean("DEV");
         while (!server.isClosed()) {
             try {
                 final Socket socket = server.accept();
@@ -67,6 +68,7 @@ public class SimpleDynamicWebServer {
                     public void run() {
                         try {
                             InputStream is = waitTimeoutInputStream(socket.getInputStream(), 1000L);
+                            if(devMode)is = logInputStream(is,1024);
                         	Request request = new Request(is);
                         	if(request.skip()){
                                 Logger.info("skip request:{} {}",request.method,request.path);
@@ -123,7 +125,7 @@ public class SimpleDynamicWebServer {
         	handlers.add(new AuthHandler(args[3], args[4],"[/]{0,1}favicon\\.ico"));
         }
         Logger.info("Port:{}, ShareDir:{}",port,workPath);
-        ServletConfig resourceConfig = new ServletConfig(TEMPLATE_DIR,"/",false,true,false);
+        ServletConfig resourceConfig = new ServletConfig(Boolean.getBoolean("DEV")?(Thread.currentThread().getContextClassLoader().getResource(".").getPath()+"resources"):TEMPLATE_DIR,"/",false,true,false);
         ServletConfig defaultConfig = new ServletConfig(workPath,context,true,true,true);
         handlers.add(
                 new ServletHandler(

@@ -9,10 +9,7 @@ import xyw.Tool;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -86,6 +83,16 @@ public class DoGetServlet extends Servlet{
 					list.add(map);
 				}
 			}
+			Collections.sort(list, new Comparator<Map<String, Object>>() {
+				@Override
+				public int compare(Map<String, Object> o1, Map<String, Object> o2) {
+					if(o1.get("isFile").equals(o2.get("isFile"))){
+						return String.valueOf(o1.get("name")).compareTo(String.valueOf(o1.get("name")));
+					}else{
+						return Boolean.parseBoolean(String.valueOf(o1.get("isFile")))?1:-1;
+					}
+				}
+			});
 		}
 		return list;
 	}
