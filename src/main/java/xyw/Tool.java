@@ -1,12 +1,17 @@
 package xyw;
 
 
+import sun.nio.cs.StandardCharsets;
+
 import java.io.*;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
 import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+
+import static xyw.Constant.UTF8;
 
 public class Tool {
 	public static final Integer BUFFER_SIZE = 1024;
@@ -455,12 +460,11 @@ public class Tool {
 			'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
 			'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/'
 	};
-	private static final int[] fromBase64 = new int[256];
+	private static final int[] fromBase64 = new int[128];
 	static {
 		Arrays.fill(fromBase64, -1);
 		for (int i = 0; i < toBase64.length; i++)
 			fromBase64[toBase64[i]] = i;
-		fromBase64['='] = -2;
 	}
 	public static String encode(byte[] rawData){
 		int dl = rawData.length/3;
@@ -488,6 +492,22 @@ public class Tool {
 			}
 		}
 		return new String(result);
+	}
+	public static byte[] decode(String base64Data){
+		int dataLength = base64Data.length();
+		int dl = dataLength/4;
+		int ll = 0;
+		if(base64Data.endsWith("=="))ll=2;
+		else if(base64Data.endsWith("="))ll=1;
+		int rl = 3*dl-ll;
+		byte[] result = new byte[rl];
+		byte[] bs = base64Data.getBytes(UTF8);
+		for(int i=0,j=0;j<rl;i+=4){
+			result[j++] = (byte)((fromBase64[bs[i]]<<2 | fromBase64[bs[i+1]]>>4));
+			if(j<rl)result[j++] = (byte)((fromBase64[bs[i+1]]<<4 | fromBase64[bs[i+2]]>>2));
+			if(j<rl)result[j++] = (byte)((fromBase64[bs[i+2]]<<6 | fromBase64[bs[i+3]]));
+		}
+		return result;
 	}
 
 	/**
