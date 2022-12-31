@@ -462,48 +462,32 @@ public class Tool {
 			fromBase64[toBase64[i]] = i;
 		fromBase64['='] = -2;
 	}
-	private static int outLength(byte[] src){
-		int paddings = 0;
-		int len = src.length;
-		if (len == 0)return 0;
-		if (src[len - 1] == '=') {
-			paddings++;
-			if (src[len - 2] == '=')
-				paddings++;
+	public static String encode(byte[] rawData){
+		int dl = rawData.length/3;
+		int ll = rawData.length%3;
+		int rl;byte[] bs;
+		if(ll==0){
+			rl = 4*dl;
+			bs = rawData;
+		}else{
+			rl = 4*dl+4;
+			bs = new byte[3*dl+3];
+			System.arraycopy(rawData,0,bs,0,rawData.length);
 		}
-		if (paddings == 0 && (len & 0x3) !=  0)
-			paddings = 4 - (len & 0x3);
-		return 3 * ((len + 3) / 4) - paddings;
-	}
-
-	/**
-	 * 仅实现Base64解码 未实现Base编码
-	 */
-	public static byte[] decode(byte[] base64Data) {
-		byte[] dst = new byte[outLength(base64Data)];
-		int dp = 0;
-		int bits = 0;
-		int shiftto = 18;
-		int index =0;
-		while(index<base64Data.length){
-			int b = fromBase64[base64Data[index++] & 0xff];
-			bits |= (b << shiftto);
-			shiftto -= 6;
-			if (shiftto < 0) {
-				dst[dp++] = (byte)(bits >> 16);
-				dst[dp++] = (byte)(bits >>  8);
-				dst[dp++] = (byte)(bits);
-				shiftto = 18;
-				bits = 0;
+		char[] result = new char[rl];
+		for(int i=0,j=0;i<rl-2;j+=3,i+=4)
+		{
+			result[i]=toBase64[(bs[j]&0xff)>>2]; //取出第一个字符的前6位并找出对应的结果字符
+			result[i+1]=toBase64[(bs[j]&0x3)<<4 | ((bs[j+1]&0xff)>>4)]; //将第一个字符的后位与第二个字符的前4位进行组合并找到对应的结果字符
+			result[i+2]=toBase64[(bs[j+1]&0xf)<<2 | ((bs[j+2]&0xff)>>6)]; //将第二个字符的后4位与第三个字符的前2位组合并找出对应的结果字符
+			result[i+3]=toBase64[bs[j+2]&0x3f]; //取出第三个字符的后6位并找出结果字符
+		}
+		if(ll!=0){
+			for(int i=3-ll;i>0;i--){
+				result[rl-i] = '=';
 			}
 		}
-		if (shiftto == 6) {
-			dst[dp] = (byte)(bits >> 16);
-		} else if (shiftto == 0) {
-			dst[dp++] = (byte)(bits >> 16);
-			dst[dp] = (byte)(bits >>  8);
-		}
-		return dst;
+		return new String(result);
 	}
 
 	/**
@@ -608,7 +592,7 @@ public class Tool {
 					value = "";
 				}
 				field.setAccessible(accessible);
-				builder.append(key).append(":").append(value);
+				builder.append("\"").append(key).append("\":").append(value);
 				index++;
 			}
 

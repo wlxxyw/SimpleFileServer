@@ -19,7 +19,7 @@ public class AuthHandler implements Handler {
 	private final List<Pattern> whiteList;
 	public AuthHandler(String name,String pwd,String ...resources){
 		Logger.info("init AuthHandler: {}:{}", name,pwd);
-		AUTH = name+":"+pwd;
+		AUTH = Tool.encode((name+":"+pwd).getBytes(UTF8));
 		whiteList = new ArrayList<Pattern>();
 		if(null!=resources&&resources.length>0){
 			for(String whiteUrl : resources){
@@ -43,7 +43,6 @@ public class AuthHandler implements Handler {
 		Map<String, String> header = req.getHeaders();
 		if(header.containsKey(AUTH_KEY)){
 			String authLine =  header.get(AUTH_KEY).substring(AUTH_BASIC.length()).trim();
-			authLine = new String(Tool.decode(authLine.getBytes()));
 			pass = AUTH.equals(authLine.trim());
 		}
 		if(pass){
