@@ -1,5 +1,8 @@
 package xyw.handler.servlet;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 import xyw.Logger;
 import xyw.Request;
 import xyw.Response;
@@ -66,33 +69,17 @@ public class DoGetServlet extends Servlet{
 		}
 		return false;
 	}
-	private List<Map<String, Object>> fileList(File...files){
-		List<Map<String, Object>> list = new ArrayList<Map<String,Object>>();
+	private List<FileInfo> fileList(File...files){
+		List<FileInfo> list = new ArrayList<FileInfo>();
 		if(null==files||0==files.length){
-			Map<String, Object> map = new HashMap<String, Object>();
-			map.put("_no_sub_file", true);
-			list.add(map);
+			list.add(new FileInfo());
 		}else{
 			for(File file:files){
 				if(file.isFile()||file.isDirectory()){
-					Map<String, Object> map = new HashMap<String, Object>();
-					map.put("name", file.getName());
-					map.put("isFile", file.isFile());
-					map.put("size", file.length());
-					map.put("lastModified", file.lastModified());
-					list.add(map);
+					list.add(new FileInfo(file));
 				}
 			}
-			Collections.sort(list, new Comparator<Map<String, Object>>() {
-				@Override
-				public int compare(Map<String, Object> o1, Map<String, Object> o2) {
-					if(o1.get("isFile").equals(o2.get("isFile"))){
-						return String.valueOf(o1.get("name")).compareTo(String.valueOf(o1.get("name")));
-					}else{
-						return Boolean.parseBoolean(String.valueOf(o1.get("isFile")))?1:-1;
-					}
-				}
-			});
+			Collections.sort(list);
 		}
 		return list;
 	}
@@ -127,6 +114,33 @@ public class DoGetServlet extends Servlet{
 		} catch (IOException e) {
 			e.printStackTrace();
 			return quickFinish(res, ResponseCode.ERROR, e.getLocalizedMessage());
+		}
+	}
+	@Getter@Setter@AllArgsConstructor
+	static class FileInfo implements Comparable<FileInfo>{
+		String name;
+		Boolean isFile;
+		Long size;
+		Long lastModified;
+		Boolean _no_sub_file;
+		public FileInfo(){
+			_no_sub_file = true;
+		}
+		public FileInfo(File file){
+			assert null!=file;
+			name = file.getName();
+			isFile = file.isFile();
+			size = file.length();
+			lastModified = file.lastModified();
+		}
+
+		@Override
+		public int compareTo(FileInfo o) {
+			if(isFile == o.isFile){
+				return name.toLowerCase().compareTo(o.name.toLowerCase());
+			}else{
+				return isFile?1:-1;
+			}
 		}
 	}
 }
